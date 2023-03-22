@@ -7,9 +7,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Analysis/Analyses/UnsafeBufferUsage.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/Type.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Basic/CharInfo.h"
@@ -20,6 +22,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include <memory>
 #include <optional>
+#include <sstream>
 
 using namespace llvm;
 using namespace clang;
@@ -1307,6 +1310,188 @@ static FixItList fixVarDeclWithSpan(const VarDecl *D, const ASTContext &Ctx,
   return FixIts;
 }
 
+static bool hasConflictingOverload(Sema &S, const FunctionDecl *FD) {
+  clang::LookupResult R(S, FD->getIdentifier(), FD->getBeginLoc(),
+                        clang::Sema::LookupOrdinaryName,
+                        Sema::NotForRedeclaration);
+
+  // TODO is CurScope actually correct?
+  S.LookupName(R, S.getCurScope());
+  // TODO this approach cannot find any overload declared after `FD`
+  // FIXME bail only in case of conflict.
+  return !R.isSingleResult();
+}
+
+static std::string getUnsafeBufferUsageAttributeText() {
+  std::stringstream SS;
+
+  SS << "#if __has_cpp_attribute(clang::unsafe_buffer_usage)"
+     << getEndOfLine().data() << "[[clang::unsafe_buffer_usage]]"
+     << getEndOfLine().data() << "#endif" << getEndOfLine().data();
+  return SS.str();
+}
+
+// For a `FunDecl`, one of whose `ParmVarDecl`s is being changed to have a new
+// type, this function produces fix-its to make the change self-contained.  Let
+// 'F' be the entity defined by the original `FunDecl` and "NewF" be the entity
+// defined by the `FunDecl` after the change to the parameter.  Fix-its produced
+// by this function are
+//   1. Add the `[[clang::unsafe_buffer_usage]]` attribute to each declaration of 'F';
+//   2. Create a declaration of "NewF" next to each declaration of `F`;
+//   3. Create a definition of "F" (as its' original definition is now belongs
+//      to "NewF") next to its original definition.  The body of the creating
+//      definition calls to "NewF".
+//
+// Example:
+//
+// void f(int *p);  // original declaration
+// void f(int *p) { // original definition
+//    p[5];
+// }
+//
+// To change the parameter `p` to be of `std::span<int>` type, we
+// also add overloads:
+//
+// [[clang::unsafe_buffer_usage]] void f(int *p); // original decl
+// void f(std::span<int> p);                      // added overload decl
+// void f(std::span<int> p) {     // original def where param is changed
+//    p[5];
+// }
+// [[clang::unsafe_buffer_usage]] void f(int *p) {  // added def
+//   return f(std::span(p, <# size #>));
+// }
+//
+// The actual fix-its may contain more details, e.g., the attribute may be guard
+// by a macro
+//   #if __has_cpp_attribute(clang::unsafe_buffer_usage)
+//   [[clang::unsafe_buffer_usage]]
+//   #endif
+//
+// `NewTypeText` is the string representation of the new type `Parm` is being
+// changed to.
+static std::optional<FixItList>
+creatingOverloadsForFixedParams(const ParmVarDecl *Parm, StringRef NewTyText,
+                                const FunctionDecl *FD, const ASTContext &Ctx,
+                                Sema &S, UnsafeBufferUsageHandler &Handler) {
+  // FIXME: need to make this conflict checking better:
+  if (hasConflictingOverload(S, FD))
+    return std::nullopt;
+
+  const SourceManager &SM = Ctx.getSourceManager();
+  const LangOptions &LangOpts = Ctx.getLangOpts();
+  // FIXME Respect indentation of the original code.
+
+  // A lambda that creates the text representation of a function declaration
+  // with the new type signature:
+  const auto NewOverloadSignatureCreator =
+      [&SM, &FD](const ParmVarDecl * Parm, StringRef NewTypeText)
+      -> std::string {
+    std::stringstream SS;
+
+    SS<< getEndOfLine().data();
+    // Appending: ret-type func-name "("
+    SS << std::string(SM.getCharacterData(FD->getBeginLoc()),
+                      SM.getCharacterData((*FD->param_begin())->getBeginLoc()));
+    // Appending: parameter-type-list
+    for (auto *OldParmIter = FD->param_begin();
+         OldParmIter != FD->param_end();) {
+      if (*OldParmIter == Parm)
+        SS << NewTypeText.data();
+      else
+        SS << (*OldParmIter)->getType().getAsString();
+      if (++OldParmIter != FD->param_end())
+        SS << ", ";
+    }
+    SS << ");" << getEndOfLine().data();
+    return SS.str();
+  };
+
+  // A lambda that creates the text representation of a function definition with
+  // the original signature:
+  const auto OldOverloadDefCreator =
+      [&SM, &FD, &Handler](const ParmVarDecl *Parm,
+                           StringRef NewTypeText) -> std::string {
+    std::stringstream SS;
+    
+    SS << getEndOfLine().data();
+    // Appending: attr-name ret-type func-name "(" param-list ")" "{"
+    SS << getUnsafeBufferUsageAttributeText()
+       << std::string(SM.getCharacterData(FD->getBeginLoc()),
+                      SM.getCharacterData(FD->getBody()->getBeginLoc()))
+       << "{";
+    // Appending: "return " func-name "("
+    SS << "return " << FD->getName().data() << "(";
+    // Appending: arg-list
+    for (const ParmVarDecl *OldParm : FD->parameters()) {
+      if (OldParm->isImplicit())
+        continue;
+      assert(!OldParm->getNameAsString().empty() &&
+             "A parameter of a function definition has no name");
+      if (OldParm == Parm)
+        // This is our spanified paramter!
+        SS << NewTypeText.data() << "(" << OldParm->getNameAsString() << ", "
+           << Handler.getUserFillPlaceHolder("size") << ")";
+      else
+        SS << OldParm->getNameAsString();
+      if (OldParm != FD->parameters().back())
+        SS << ", ";
+    }
+    // finish call and the body
+    SS << ");}" << getEndOfLine().data();
+    // FIXME: 80-char line formatting?
+    return SS.str();
+  };
+
+  FixItList FixIts{};
+
+  for (FunctionDecl *FReDecl : FD->redecls()) {
+    if (FReDecl->isThisDeclarationADefinition()) {
+      assert(FReDecl == FD && "inconsistent function definition");
+      // Inserts a definition with the old signature to the end of
+      // `FReDecl`:
+      FixIts.emplace_back(FixItHint::CreateInsertion(
+          getPastLoc(FReDecl, SM, LangOpts),
+          OldOverloadDefCreator(Parm, NewTyText)));
+    } else {
+      // Adds the unsafe-buffer attribute (if not already there) to `FReDecl`:
+      if (!FReDecl->hasAttr<UnsafeBufferUsageAttr>()) {
+        FixIts.emplace_back(FixItHint::CreateInsertion(
+            FReDecl->getBeginLoc(), getUnsafeBufferUsageAttributeText()));
+      }
+      // Inserts a declaration with the new signature to the end of `FReDecl`:
+      FixIts.emplace_back(FixItHint::CreateInsertion(
+          getPastLoc(FReDecl, SM, LangOpts),
+          NewOverloadSignatureCreator(Parm, NewTyText)));
+    }
+  }
+  return FixIts;
+}
+
+// To fix a `ParmVarDecl` to be of `std::span` type.  In addition, creating a
+// new overload of the function so that the change is self-contained (see
+// `creatingOverloadsForFixedParams`).
+static FixItList fixParamWithSpan(const ParmVarDecl *PVD, const ASTContext &Ctx,
+                                  Sema &S, UnsafeBufferUsageHandler &Handler) {
+  assert(PVD->getType()->isPointerType());
+  auto *FD = dyn_cast<FunctionDecl>(PVD->getDeclContext());
+
+  if (!FD)
+    return {};
+
+  SourceRange TyRange = PVD->getTypeSourceInfo()->getTypeLoc().getSourceRange();
+  std::string NewTyText =
+      "std::span<" + PVD->getType()->getPointeeType().getAsString() + ">";
+  FixItList Fixes;
+
+  Fixes.push_back(FixItHint::CreateReplacement(TyRange, NewTyText));
+  if (auto OverloadFix = creatingOverloadsForFixedParams(PVD, NewTyText, FD,
+                                                         Ctx, S, Handler)) {
+    Fixes.append(*OverloadFix);
+    return Fixes;
+  }
+  return {};
+}
+
 static FixItList fixVariableWithSpan(const VarDecl *VD,
                                      const DeclUseTracker &Tracker,
                                      const ASTContext &Ctx,
@@ -1326,14 +1511,45 @@ static FixItList fixVariableWithSpan(const VarDecl *VD,
   return fixVarDeclWithSpan(VD, Ctx, Handler.getUserFillPlaceHolder());
 }
 
+// TODO: we should be consistent to use `std::nullopt` to represent no-fix due
+// to any unexpected problem.
 static FixItList fixVariable(const VarDecl *VD, Strategy::Kind K,
+                             /* The decl under analysis */ const Decl *D,
                              const DeclUseTracker &Tracker,
-                             const ASTContext &Ctx,
+                             const ASTContext &Ctx, Sema &S,
                              UnsafeBufferUsageHandler &Handler) {
+  if (const auto *PVD = dyn_cast<ParmVarDecl>(VD)) {
+    auto *FD = dyn_cast<clang::FunctionDecl>(PVD->getDeclContext());
+    if (!FD || FD != D)
+      // `FD != D` means that `PVD` belongs to a function that is not being
+      // analyzed currently.  Thus `FD` may not be complete.
+      return {};
+
+    // TODO If function has a try block we can't change params unless we check
+    // also its catch block for their use.
+    // FIXME We might support static class methods, some select methods,
+    // operators and possibly lamdas.
+    if (FD->isMain() || FD->isConstexpr() ||
+        FD->getTemplatedKind() != FunctionDecl::TemplatedKind::TK_NonTemplate ||
+        FD->isVariadic() ||
+        // also covers call-operator of lamdas
+        isa<CXXMethodDecl>(FD) ||
+        // skip when the function body is a try-block
+        (FD->hasBody() && isa<CXXTryStmt>(FD->getBody())) ||
+        FD->isOverloadedOperator())
+      return {}; // TODO test all these cases
+  }
+
   switch (K) {
   case Strategy::Kind::Span: {
-    if (VD->getType()->isPointerType() && VD->isLocalVarDecl())
-      return fixVariableWithSpan(VD, Tracker, Ctx, Handler);
+    if (VD->getType()->isPointerType()) {
+      if (const auto *PVD = dyn_cast<ParmVarDecl>(VD))
+        return fixParamWithSpan(PVD, Ctx, S, Handler);
+
+      if (VD->isLocalVarDecl())
+        return fixVariableWithSpan(VD, Tracker, Ctx, Handler);
+    }
+
     return {};
   }
   case Strategy::Kind::Iterator:
@@ -1362,11 +1578,16 @@ static bool overlapWithMacro(const FixItList &FixIts) {
 
 static std::map<const VarDecl *, FixItList>
 getFixIts(FixableGadgetSets &FixablesForUnsafeVars, const Strategy &S,
-          const DeclUseTracker &Tracker, const ASTContext &Ctx,
+          /* The decl under analysis */ const Decl *D,
+          const DeclUseTracker &Tracker, Sema &SA,
           UnsafeBufferUsageHandler &Handler) {
+  const ASTContext &Ctx = D->getASTContext();
+  const SourceManager &SM = Ctx.getSourceManager();
   std::map<const VarDecl *, FixItList> FixItsForVariable;
   for (const auto &[VD, Fixables] : FixablesForUnsafeVars.byVar) {
-    FixItsForVariable[VD] = fixVariable(VD, S.lookup(VD), Tracker, Ctx, Handler);
+    const Strategy::Kind ReplacementTypeForVD = S.lookup(VD);
+    FixItsForVariable[VD] =
+        fixVariable(VD, ReplacementTypeForVD, D, Tracker, Ctx, SA, Handler);
     // If we fail to produce Fix-It for the declaration we have to skip the
     // variable entirely.
     if (FixItsForVariable[VD].empty()) {
@@ -1414,7 +1635,7 @@ getNaiveStrategy(const llvm::SmallVectorImpl<const VarDecl *> &UnsafeVars) {
 
 void checkUnsafeBufferUsage(const Decl *D,
                                    UnsafeBufferUsageHandler &Handler,
-                                   bool EmitFixits) {
+                                   bool EmitFixits, Sema &S) {
   assert(D && D->getBody());
 
   WarningGadgetSets UnsafeOps;
@@ -1434,8 +1655,10 @@ void checkUnsafeBufferUsage(const Decl *D,
     // Filter out non-local vars and vars with unclaimed DeclRefExpr-s.
     for (auto it = FixablesForUnsafeVars.byVar.cbegin();
          it != FixablesForUnsafeVars.byVar.cend();) {
-      // FIXME: Support ParmVarDecl as well.
-      if (!it->first->isLocalVarDecl() || Tracker.hasUnclaimedUses(it->first)) {
+      // FIXME: need to deal with global variables later    
+      if ((!it->first->isLocalVarDecl() &&
+           !isa<ParmVarDecl>(it->first))
+          || Tracker.hasUnclaimedUses(it->first)) {
         it = FixablesForUnsafeVars.byVar.erase(it);
       } else {
         ++it;
@@ -1447,8 +1670,8 @@ void checkUnsafeBufferUsage(const Decl *D,
       UnsafeVars.push_back(VD);
 
     Strategy NaiveStrategy = getNaiveStrategy(UnsafeVars);
-    FixItsForVariable = getFixIts(FixablesForUnsafeVars, NaiveStrategy, Tracker,
-                                  D->getASTContext(), Handler);
+    FixItsForVariable = getFixIts(FixablesForUnsafeVars, NaiveStrategy, D, Tracker,
+                                  S, Handler);
 
     // FIXME Detect overlapping FixIts.
   }

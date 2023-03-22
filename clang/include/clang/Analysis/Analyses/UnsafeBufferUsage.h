@@ -20,6 +20,8 @@
 
 namespace clang {
 
+class Sema;
+
 /// The interface that lets the caller handle unsafe buffer usage analysis
 /// results by overriding this class's handle... methods.
 class UnsafeBufferUsageHandler {
