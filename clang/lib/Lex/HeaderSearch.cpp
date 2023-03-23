@@ -1773,8 +1773,11 @@ HeaderSearch::lookupModuleMapFile(const DirectoryEntry *Dir, bool IsFramework) {
 
 Module *HeaderSearch::loadFrameworkModule(StringRef Name, DirectoryEntryRef Dir,
                                           bool IsSystem) {
-  if (Module *Module = ModMap.findModule(Name))
-    return Module;
+  // CAS: we need to load modulemaps even if we have the primary module for this
+  // framework already, because it could be from a PCH that did not import the
+  // _Private module. Note: loadModuleMapFile is also cached, so this is cheap.
+  // if (Module *Module = ModMap.findModule(Name))
+  //   return Module;
 
   // Try to load a module map file.
   switch (loadModuleMapFile(Dir, IsSystem, /*IsFramework*/true)) {
