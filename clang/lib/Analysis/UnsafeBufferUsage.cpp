@@ -19,6 +19,7 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Sema/Lookup.h"
 #include "llvm/ADT/SmallVector.h"
 #include <memory>
 #include <optional>
@@ -1058,6 +1059,12 @@ UPCAddressofArraySubscriptGadget::getFixits(const Strategy &S) const {
   return std::nullopt; // something went wrong, no fix-it
 }
 
+// FIXME: this function should be customizable through format
+static StringRef getEndOfLine() {
+  static const char *const EOL = "\n";
+  return EOL;
+}
+
 // Return the text representation of the given `APInt Val`:
 static std::string getAPIntText(APInt Val) {
   SmallVector<char> Txt;
@@ -1425,14 +1432,14 @@ creatingOverloadsForFixedParams(const ParmVarDecl *Parm, StringRef NewTyText,
     for (const ParmVarDecl *OldParm : FD->parameters()) {
       if (OldParm->isImplicit())
         continue;
-      assert(!OldParm->getNameAsString().empty() &&
+      assert(OldParm->getIdentifier() &&
              "A parameter of a function definition has no name");
       if (OldParm == Parm)
         // This is our spanified paramter!
-        SS << NewTypeText.data() << "(" << OldParm->getNameAsString() << ", "
+        SS << NewTypeText.data() << "(" << OldParm->getName().str() << ", "
            << Handler.getUserFillPlaceHolder("size") << ")";
       else
-        SS << OldParm->getNameAsString();
+        SS << OldParm->getName().str();
       if (OldParm != FD->parameters().back())
         SS << ", ";
     }
@@ -1478,12 +1485,13 @@ static FixItList fixParamWithSpan(const ParmVarDecl *PVD, const ASTContext &Ctx,
   if (!FD)
     return {};
 
-  SourceRange TyRange = PVD->getTypeSourceInfo()->getTypeLoc().getSourceRange();
   std::string NewTyText =
       "std::span<" + PVD->getType()->getPointeeType().getAsString() + ">";
+  std::string NewDeclText = NewTyText + " " + PVD->getName().str();
   FixItList Fixes;
 
-  Fixes.push_back(FixItHint::CreateReplacement(TyRange, NewTyText));
+  Fixes.push_back(
+      FixItHint::CreateReplacement(PVD->getSourceRange(), NewDeclText));
   if (auto OverloadFix = creatingOverloadsForFixedParams(PVD, NewTyText, FD,
                                                          Ctx, S, Handler)) {
     Fixes.append(*OverloadFix);
@@ -1582,7 +1590,6 @@ getFixIts(FixableGadgetSets &FixablesForUnsafeVars, const Strategy &S,
           const DeclUseTracker &Tracker, Sema &SA,
           UnsafeBufferUsageHandler &Handler) {
   const ASTContext &Ctx = D->getASTContext();
-  const SourceManager &SM = Ctx.getSourceManager();
   std::map<const VarDecl *, FixItList> FixItsForVariable;
   for (const auto &[VD, Fixables] : FixablesForUnsafeVars.byVar) {
     const Strategy::Kind ReplacementTypeForVD = S.lookup(VD);
@@ -1729,7 +1736,7 @@ void clang::checkUnsafeBufferUsageForTU(const TranslationUnitDecl *TU,
 
         // Above checks and early returns are copied from
         // `clang::sema::AnalysisBasedWarnings::IssueWarnings`.
-        checkUnsafeBufferUsage(Callable, Handler, EmitFixits);
+        checkUnsafeBufferUsage(Callable, Handler, EmitFixits, S);
       }
     }
   };

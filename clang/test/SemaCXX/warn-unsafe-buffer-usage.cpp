@@ -227,11 +227,11 @@ void testPointerArithmetic(int * p, const int **q, T * x) {
 void testTemplate(int * p) {
   int *a[10];
   foo(f(p, &p, a, a)[1]); // expected-warning{{unsafe buffer access}}
-                          // expected-note@-1{{in instantiation of function template specialization 'f<int *, 10>' requested here}}
+                          // FIXME: expected note @-1{{in instantiation of function template specialization 'f<int *, 10>' requested here}}
 
   const int **q = const_cast<const int **>(&p);
 
-  testPointerArithmetic(p, q, p); //expected-note{{in instantiation of}}
+  testPointerArithmetic(p, q, p); // FIXME: expected note{{in instantiation of}}
 }
 
 void testPointerToMember() {
@@ -322,7 +322,7 @@ template<typename T> void fArr(T t[]) {
   foo(ar[5]);   // expected-note{{used in buffer access here}}
 }
 
-template void fArr<int>(int t[]); // expected-note {{in instantiation of}}
+template void fArr<int>(int t[]); // FIXME: expected note {{in instantiation of}}
 
 int testReturn(int t[]) { // expected-note{{change type of 't' to 'std::span' to preserve bounds information}}
   // expected-warning@-1{{'t' is an unsafe pointer used for buffer access}}

@@ -54,12 +54,6 @@ public:
   }
 };
 
-// TODO: this function should be customizable through format
-static StringRef getEndOfLine() {
-  static const char *const EOL = "\n";
-  return EOL;
-}
-
 void checkUnsafeBufferUsageForTU(const TranslationUnitDecl *TU,
                                  UnsafeBufferUsageHandler &Handler,
                                  clang::Sema &S, bool EmitFixits);
