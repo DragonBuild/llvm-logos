@@ -1,47 +1,24 @@
-# Apple's fork of llvm-project
+# llvm-logos
 
-This is Apple's fork of llvm-project.  For more information on Apple's
-branching scheme, please see
-[apple-docs/AppleBranchingScheme.md](https://github.com/apple/llvm-project/tree/apple/main/apple-docs/AppleBranchingScheme.md).
+clang-logos is a modified build of apple-llvm, allowing compilation of Logos code directly to LLVM IR.
 
-The LLVM project's main README follows.
+The syntax for the logos we compile here is slightly different than DHowett's original Logos syntax. 
 
-# The LLVM Compiler Infrastructure
+Implementing it directly in LLVM as opposed to via a preprocessor allows:
+* Using @ directives more in line with regular Objective-C
+* Utilizing clangd / other development tools. Yes, this includes autocomplete/similar features in any editor supporting clangd
+* Better error/warning output
 
-Welcome to the LLVM project!
+And from a development standpoint:
+* Far more flexibility, ease of maintenance, from a language standpoint. 
+* Not having to write/read perl
 
-This repository contains the source code for LLVM, a toolkit for the
-construction of highly optimized compilers, optimizers, and run-time
-environments.
+This project is still in active development, and has a ways to go before reaching feature parity with modern Logos.
 
-The LLVM project has multiple components. The core of the project is
-itself called "LLVM". This contains all of the tools, libraries, and header
-files needed to process intermediate representations and convert them into
-object files. Tools include an assembler, disassembler, bitcode analyzer, and
-bitcode optimizer.
+I'll update this README.md in the future with better info.
 
-C-like languages use the [Clang](http://clang.llvm.org/) frontend. This
-component compiles C, C++, Objective-C, and Objective-C++ code into LLVM bitcode
--- and from there into object files, using LLVM.
+This is a modern continuation of Evan Swick's https://github.com/eswick/clang-logos, continued in his memory. 
 
-Other components include:
-the [libc++ C++ standard library](https://libcxx.llvm.org),
-the [LLD linker](https://lld.llvm.org), and more.
 
-## Getting the Source Code and Building LLVM
 
-Consult the
-[Getting Started with LLVM](https://llvm.org/docs/GettingStarted.html#getting-the-source-code-and-building-llvm)
-page for information on building and running LLVM.
 
-For information on how to contribute to the LLVM project, please take a look at
-the [Contributing to LLVM](https://llvm.org/docs/Contributing.html) guide.
-
-## Getting in touch
-
-Join the [LLVM Discourse forums](https://discourse.llvm.org/), [Discord
-chat](https://discord.gg/xS7Z362), or #llvm IRC channel on
-[OFTC](https://oftc.net/).
-
-The LLVM project has adopted a [code of conduct](https://llvm.org/docs/CodeOfConduct.html) for
-participants to all modes of communication within the project.

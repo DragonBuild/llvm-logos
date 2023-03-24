@@ -147,6 +147,11 @@ public:
                             CategoryContextExtSymbolDefinedIn);
   }
 
+  void GenObjCHook(StringRef cls, StringRef ExtSymDefinedIn,
+                   StringRef CategoryContextExtSymbolDefinedIn) {
+    generateUSRForObjCHook(cls, Out, ExtSymDefinedIn, CategoryContextExtSymbolDefinedIn);
+  }
+
   /// Generate a USR for an Objective-C class category.
   void GenObjCCategory(StringRef cls, StringRef cat,
                        StringRef clsExt, StringRef catExt) {
@@ -428,6 +433,10 @@ void USRGenerator::VisitObjCContainerDecl(const ObjCContainerDecl *D,
       GenObjCClass(D->getName(), GetExternalSourceContainer(D),
                    GetExternalSourceContainer(CatD));
       break;
+    case Decl::ObjCHook: {
+      GenObjCHook(D->getName(), GetExternalSourceContainer(D), GetExternalSourceContainer(CatD));
+      break;
+    }
     case Decl::ObjCCategory: {
       const ObjCCategoryDecl *CD = cast<ObjCCategoryDecl>(D);
       const ObjCInterfaceDecl *ID = CD->getClassInterface();
@@ -1085,10 +1094,18 @@ static void combineClassAndCategoryExtContainers(StringRef ClsSymDefinedIn,
 
 void clang::index::generateUSRForObjCClass(StringRef Cls, raw_ostream &OS,
                                            StringRef ExtSymDefinedIn,
-                                  StringRef CategoryContextExtSymbolDefinedIn) {
+                                           StringRef CategoryContextExtSymbolDefinedIn) {
   combineClassAndCategoryExtContainers(ExtSymDefinedIn,
                                        CategoryContextExtSymbolDefinedIn, OS);
   OS << "objc(cs)" << Cls;
+}
+
+void clang::index::generateUSRForObjCHook(StringRef Cls, raw_ostream &OS,
+                                           StringRef ExtSymDefinedIn,
+                                           StringRef CategoryContextExtSymbolDefinedIn) {
+  combineClassAndCategoryExtContainers(ExtSymDefinedIn,
+                                       CategoryContextExtSymbolDefinedIn, OS);
+  OS << "objc(hk)" << Cls;
 }
 
 void clang::index::generateUSRForObjCCategory(StringRef Cls, StringRef Cat,

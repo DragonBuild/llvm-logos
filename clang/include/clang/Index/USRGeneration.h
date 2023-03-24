@@ -31,6 +31,11 @@ static inline StringRef getUSRSpacePrefix() {
 /// \returns true if the results should be ignored, false otherwise.
 bool generateUSRForDecl(const Decl *D, SmallVectorImpl<char> &Buf);
 
+/// Generate a USR fragment for an Objective-C hook.
+void generateUSRForObjCHook(StringRef Cls, raw_ostream &OS,
+                             StringRef ExtSymbolDefinedIn = "",
+                             StringRef CategoryContextExtSymbolDefinedIn = "");
+
 /// Generate a USR fragment for an Objective-C class.
 void generateUSRForObjCClass(StringRef Cls, raw_ostream &OS,
                              StringRef ExtSymbolDefinedIn = "",
