@@ -2253,6 +2253,10 @@ void StmtProfiler::VisitObjCDictionaryLiteral(const ObjCDictionaryLiteral *E) {
   VisitExpr(E);
 }
 
+void StmtProfiler::VisitObjCOrigExpr(const ObjCOrigExpr *S) {
+    VisitExpr(S);
+}
+
 void StmtProfiler::VisitObjCEncodeExpr(const ObjCEncodeExpr *S) {
   VisitExpr(S);
   VisitType(S->getEncodedType());

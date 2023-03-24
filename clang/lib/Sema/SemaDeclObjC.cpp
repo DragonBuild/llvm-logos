@@ -2241,6 +2241,74 @@ static bool shouldWarnUndefinedMethod(const ObjCMethodDecl *M) {
   return M->getAvailability() != AR_Unavailable;
 }
 
+
+Decl *Sema::ActOnStartHook(SourceLocation AtHookLoc,
+                          IdentifierInfo *ClassName, SourceLocation ClassLoc) {
+  ObjCInterfaceDecl *IDecl = nullptr;
+  // Check for another declaration kind with the same name.
+  NamedDecl *PrevDecl
+    = LookupSingleName(TUScope, ClassName, ClassLoc, LookupOrdinaryName,
+                       forRedeclarationInCurContext());
+  if (PrevDecl && isa<ObjCHookDecl>(PrevDecl)) {
+    Diag(ClassLoc, diag::err_redefinition_different_kind) << ClassName;
+    Diag(PrevDecl->getLocation(), diag::note_previous_definition);
+  } else if ((IDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl))) {
+    RequireCompleteType(ClassLoc, Context.getObjCInterfaceType(IDecl),
+                        diag::warn_undef_interface);
+  } else {
+    // We did not find anything with the name ClassName; try to correct for
+    // typos in the class name.
+    ObjCInterfaceValidatorCCC Validator;
+    TypoCorrection Corrected =
+                CorrectTypo(DeclarationNameInfo(ClassName, ClassLoc),
+                            LookupOrdinaryName, TUScope, nullptr, Validator, CTK_NonError);
+    if (Corrected.getCorrectionDeclAs<ObjCInterfaceDecl>()) {
+      // Suggest the (potentially) correct interface name. Don't provide a
+      // code-modification hint or use the typo name for recovery, because
+      // this is just a warning. The program may actually be correct.
+      diagnoseTypo(Corrected,
+                   PDiag(diag::warn_undef_interface_suggest) << ClassName,
+                   /*ErrorRecovery*/false);
+    } else {
+      Diag(ClassLoc, diag::warn_undef_interface) << ClassName;
+    }
+  }
+
+  if (!IDecl) {
+    // Legacy case of @hook with no corresponding @interface.
+    // Build, chain & install the interface decl into the identifier.
+
+    IDecl = ObjCInterfaceDecl::Create(Context, CurContext, AtHookLoc, ClassName,
+                                      /*PrevDecl=*/nullptr, nullptr, ClassLoc, true);
+
+    IDecl->startDefinition();
+    IDecl->setEndOfDefinitionLoc(ClassLoc);
+    PushOnScopeChains(IDecl, TUScope);
+  } else {
+    // Mark the interface as being completed, even if it was just as
+    //   @class ....;
+    // declaration; the user cannot reopen it.
+    if (!IDecl->hasDefinition())
+      IDecl->startDefinition();
+  }
+
+  ObjCHookDecl *HookDecl =
+    ObjCHookDecl::Create(Context, CurContext, IDecl, ClassLoc, AtHookLoc);
+
+
+  if (CheckObjCDeclScope(HookDecl)) {
+    ActOnObjCContainerStartDefinition(HookDecl);
+    return HookDecl;
+  }
+
+  // TODO: Check that there is no duplicate hook of this class.
+  PushOnScopeChains(HookDecl, TUScope);
+
+  ActOnObjCContainerStartDefinition(HookDecl);
+  return HookDecl;
+}
+
+
 static void WarnUndefinedMethod(Sema &S, ObjCImplDecl *Impl,
                                 ObjCMethodDecl *method, bool &IncompleteImpl,
                                 unsigned DiagID,
@@ -3885,6 +3953,8 @@ Sema::ObjCContainerKind Sema::getObjCContainerKind() const {
       return Sema::OCK_Implementation;
     case Decl::ObjCCategoryImpl:
       return Sema::OCK_CategoryImplementation;
+    case Decl::ObjCHook:
+      return Sema::OCK_Hook;
 
     default:
       return Sema::OCK_None;
@@ -4446,6 +4516,13 @@ private:
       search(Interface);
   }
 
+  void searchFrom(const ObjCHookDecl *hook) {
+    // A method in a class implementation overrides declarations from
+    // the class interface.
+    if (const ObjCInterfaceDecl *Interface = hook->getClassInterface())
+      search(Interface);
+  }
+
   void search(const ObjCProtocolList &protocols) {
     for (const auto *Proto : protocols)
       search(Proto);
@@ -4813,7 +4890,9 @@ Decl *Sema::ActOnMethodDeclaration(
       /*isPropertyAccessor=*/false, /*isSynthesizedAccessorStub=*/false,
       /*isImplicitlyDeclared=*/false, /*isDefined=*/false,
       MethodDeclKind == tok::objc_optional ? ObjCMethodDecl::Optional
-                                           : ObjCMethodDecl::Required,
+                                           : (MethodDeclKind == tok::objc_new
+                               ? ObjCMethodDecl::New
+                               : ObjCMethodDecl::Required),
       HasRelatedResultType);
 
   SmallVector<ParmVarDecl*, 16> Params;

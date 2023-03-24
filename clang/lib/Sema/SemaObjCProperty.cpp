@@ -1100,6 +1100,7 @@ Decl *Sema::ActOnPropertyImplDecl(Scope *S,
   // a declaration.
   ObjCImplementationDecl *IC = nullptr;
   ObjCCategoryImplDecl *CatImplClass = nullptr;
+  ObjCHookDecl *HC = 0;
   if ((IC = dyn_cast<ObjCImplementationDecl>(ClassImpDecl))) {
     IDecl = IC->getClassInterface();
     // We always synthesize an interface for an implementation
@@ -1194,6 +1195,21 @@ Decl *Sema::ActOnPropertyImplDecl(Scope *S,
       << Category->getDeclName();
       return nullptr;
     }
+  } else if ((HC = dyn_cast<ObjCHookDecl>(ClassImpDecl))) {
+    IDecl = HC->getClassInterface();
+    if (!IDecl) {
+      Diag(AtLoc, diag::err_missing_property_interface);
+      return 0;
+    }
+
+    // TODO: Check categories
+    property = IDecl->FindPropertyDeclaration(PropertyId, QueryKind);
+
+    if (!property) {
+      Diag(PropertyLoc, diag::err_missing_property_declaration)
+      << HC->getDeclName() << PropertyId->getName();
+      return 0;
+    }
   } else {
     Diag(AtLoc, diag::err_bad_property_context);
     return nullptr;
@@ -1204,6 +1220,8 @@ Decl *Sema::ActOnPropertyImplDecl(Scope *S,
   // Check that we have a valid, previously declared ivar for @synthesize
   if (Synthesize) {
     // @synthesize
+    if (PropertyIvar && HC) // '@synthesize <prop> = <ivar>' in @hook
+      Diag(PropertyDiagLoc, diag::err_property_in_hook_ivar_decl);
     if (!PropertyIvar)
       PropertyIvar = PropertyId;
     // Check that this is a previously declared 'ivar' in 'IDecl' interface
@@ -1338,8 +1356,10 @@ Decl *Sema::ActOnPropertyImplDecl(Scope *S,
       }
       if (CompleteTypeErr)
         Ivar->setInvalidDecl();
+      if (!HC) {
       ClassImpDecl->addDecl(Ivar);
       IDecl->makeDeclVisibleInContext(Ivar);
+    }
 
       if (getLangOpts().ObjCRuntime.isFragile())
         Diag(PropertyDiagLoc, diag::err_missing_property_ivar_decl)
@@ -1593,7 +1613,7 @@ Decl *Sema::ActOnPropertyImplDecl(Scope *S,
         Ivar->setInvalidDecl();
       }
     }
-  } else {
+  } else if (CatImplClass) {
     if (Synthesize)
       if (ObjCPropertyImplDecl *PPIDecl =
           CatImplClass->FindPropertyImplIvarDecl(PropertyIvar)) {
@@ -1610,6 +1630,15 @@ Decl *Sema::ActOnPropertyImplDecl(Scope *S,
       return nullptr;
     }
     CatImplClass->addPropertyImplementation(PIDecl);
+  } else {
+    assert(HC && "@hook decl is null");
+
+    if (ObjCPropertyImplDecl *PPIDecl = HC->FindPropertyImplDecl(PropertyId, QueryKind)) {
+      Diag(PropertyDiagLoc, diag::err_property_implemented) << PropertyId;
+      Diag(PPIDecl->getLocation(), diag::note_previous_declaration);
+      return 0;
+    }
+    HC->addPropertyImplementation(PIDecl);
   }
 
   if (PIDecl->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic &&

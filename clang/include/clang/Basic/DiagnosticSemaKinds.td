@@ -1469,6 +1469,8 @@ def err_synthesize_category_decl : Error<
   "@synthesize not allowed in a category's implementation">;
 def err_synthesize_on_class_property : Error<
   "@synthesize not allowed on a class property %0">;
+def err_missing_property_declaration : Error<
+  "%0 does not declare property '%1'">;
 def err_missing_property_interface : Error<
   "property implementation in a category with no category declaration">;
 def err_bad_category_property_decl : Error<
@@ -1521,6 +1523,8 @@ def err_strong_property : Error<
   "existing instance variable %1 for strong property %0 may not be __weak">;
 def err_dynamic_property_ivar_decl : Error<
   "dynamic property cannot have instance variable specification">;
+def err_property_in_hook_ivar_decl : Error<
+  "properties within @hook can not have instance variable specification">;
 def err_duplicate_ivar_use : Error<
   "synthesized properties %0 and %1 both claim instance variable %2">;
 def err_property_implemented : Error<"property %0 is already implemented">;
@@ -7407,6 +7411,10 @@ def err_root_class_cannot_use_super : Error<
   "%0 cannot use 'super' because it is a root class">;
 def err_invalid_receiver_to_message_super : Error<
   "'super' is only valid in a method body">;
+def err_invalid_receiver_to_orig : Error<
+  "@orig is only valid in a method body">;
+def err_orig_outside_hook : Error<
+  "@orig is only valid in an @hook">;
 def err_invalid_receiver_class_message : Error<
   "receiver type %0 is not an Objective-C class">;
 def err_missing_open_square_message_send : Error<

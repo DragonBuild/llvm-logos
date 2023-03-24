@@ -146,6 +146,7 @@ llvm::opt::Arg *getLastProfileUseArg(const llvm::opt::ArgList &Args);
 llvm::opt::Arg *getLastProfileSampleUseArg(const llvm::opt::ArgList &Args);
 
 bool isObjCAutoRefCount(const llvm::opt::ArgList &Args);
+bool isObjCLogos(const llvm::opt::ArgList &Args);
 
 llvm::StringRef getLTOParallelism(const llvm::opt::ArgList &Args,
                                   const Driver &D);

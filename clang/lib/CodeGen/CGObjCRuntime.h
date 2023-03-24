@@ -83,13 +83,14 @@ protected:
   uint64_t ComputeIvarBaseOffset(CodeGen::CodeGenModule &CGM,
                                  const ObjCImplementationDecl *OID,
                                  const ObjCIvarDecl *Ivar);
-
+public:
   LValue EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
                                   const ObjCInterfaceDecl *OID,
                                   llvm::Value *BaseValue,
                                   const ObjCIvarDecl *Ivar,
                                   unsigned CVRQualifiers,
                                   llvm::Value *Offset);
+protected:
   /// Emits a try / catch statement.  This function is intended to be called by
   /// subclasses, and provides a generic mechanism for generating these, which
   /// should be usable by all runtimes.  The caller must provide the functions
@@ -173,6 +174,18 @@ public:
                       const CallArgList &CallArgs,
                       const ObjCInterfaceDecl *Class = nullptr,
                       const ObjCMethodDecl *Method = nullptr) = 0;
+
+  virtual CodeGen::RValue
+  GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                      ReturnValueSlot ReturnSlot,
+                      QualType ResultType,
+                      llvm::Value *Sel,
+                      llvm::Value *Receiver,
+                      const CallArgList &CallArgs,
+                      const ObjCInterfaceDecl *Class = 0,
+                      const ObjCMethodDecl *Method = 0) {
+    llvm_unreachable("runtime doesn't support direct selectors");
+  };
 
   /// Generate an Objective-C message send operation.
   ///

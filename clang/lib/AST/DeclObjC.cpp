@@ -2336,6 +2336,64 @@ raw_ostream &clang::operator<<(raw_ostream &OS,
 }
 
 //===----------------------------------------------------------------------===//
+// ObjCHookDecl
+//===----------------------------------------------------------------------===//
+
+void ObjCHookDecl::anchor() { }
+
+ObjCHookDecl *
+ObjCHookDecl::Create(ASTContext &C, DeclContext *DC,
+                     ObjCInterfaceDecl *ClassInterface,
+                     SourceLocation nameLoc,
+                     SourceLocation atStartLoc) {
+  if (ClassInterface && ClassInterface->hasDefinition())
+    ClassInterface = ClassInterface->getDefinition();
+  return new (C, DC) ObjCHookDecl(DC, ClassInterface, nameLoc, atStartLoc);
+}
+
+void ObjCHookDecl::RegisterMethodDefinition(const ObjCMethodDecl *OMD,
+                                            llvm::Function *Fn) {
+  MethodDefinitions.insert(std::make_pair(OMD, Fn));
+}
+
+llvm::Function *ObjCHookDecl::GetMethodDefinition(const ObjCMethodDecl *OMD) {
+  llvm::DenseMap<const ObjCMethodDecl*, llvm::Function*>::iterator
+      I = MethodDefinitions.find(OMD);
+  if (I != MethodDefinitions.end())
+    return I->second;
+
+  return NULL;
+}
+
+void ObjCHookDecl::RegisterOrigPointer(const ObjCMethodDecl *OMD, llvm::GlobalVariable *Gv) {
+  OrigPointers.insert(std::make_pair(OMD, Gv));
+}
+
+llvm::GlobalVariable * ObjCHookDecl::GetOrigPointer(const ObjCMethodDecl *OMD) {
+  llvm::DenseMap<const ObjCMethodDecl*, llvm::GlobalVariable*>::iterator
+      I = OrigPointers.find(OMD);
+  if (I != OrigPointers.end())
+    return I->second;
+
+  return NULL;
+}
+
+void ObjCHookDecl::RegisterPropertyKey(const ObjCPropertyImplDecl *OPD,
+                                       llvm::GlobalVariable *Gv) {
+  PropertyKeys.insert(std::make_pair(OPD, Gv));
+}
+
+llvm::GlobalVariable * ObjCHookDecl::GetPropertyKey(
+    const ObjCPropertyImplDecl *OPD) {
+  llvm::DenseMap<const ObjCPropertyImplDecl*, llvm::GlobalVariable*>::iterator
+      I = PropertyKeys.find(OPD);
+  if (I != PropertyKeys.end())
+    return I->second;
+
+  return NULL;
+}
+
+//===----------------------------------------------------------------------===//
 // ObjCCompatibleAliasDecl
 //===----------------------------------------------------------------------===//
 

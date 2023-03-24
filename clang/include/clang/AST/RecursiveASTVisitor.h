@@ -1659,6 +1659,8 @@ DEF_TRAVERSE_DECL(ObjCCategoryImplDecl, {// FIXME: implement
 
 DEF_TRAVERSE_DECL(ObjCImplementationDecl, {// FIXME: implement
                                           })
+DEF_TRAVERSE_DECL(ObjCHookDecl, {// FIXME: implement
+                                })
 
 DEF_TRAVERSE_DECL(ObjCInterfaceDecl, {
   if (ObjCTypeParamList *typeParamList = D->getTypeParamListAsWritten()) {
@@ -2769,6 +2771,7 @@ DEF_TRAVERSE_STMT(ObjCMessageExpr, {
     TRY_TO(TraverseTypeLoc(TInfo->getTypeLoc()));
 })
 
+DEF_TRAVERSE_STMT(ObjCOrigExpr, { })
 DEF_TRAVERSE_STMT(ObjCPropertyRefExpr, {
   if (S->isClassReceiver()) {
     ObjCInterfaceDecl *IDecl = S->getClassReceiver();

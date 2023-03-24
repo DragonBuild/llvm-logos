@@ -61,6 +61,7 @@ add_clang_library(clangCodeGen
   CGObjCGNU.cpp
   CGObjCMac.cpp
   CGObjCRuntime.cpp
+  CGLogos.cpp
   CGOpenCLRuntime.cpp
   CGOpenMPRuntime.cpp
   CGOpenMPRuntimeGPU.cpp

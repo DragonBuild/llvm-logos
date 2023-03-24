@@ -409,6 +409,7 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::ObjCCategory:
   case Decl::ObjCCategoryImpl:
   case Decl::ObjCImplementation:
+  case Decl::ObjCHook:
   case Decl::ObjCProperty:
   case Decl::ObjCCompatibleAlias:
   case Decl::LinkageSpec:

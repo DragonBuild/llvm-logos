@@ -99,6 +99,7 @@ LANGOPT(CPlusPlus17       , 1, 0, "C++17")
 LANGOPT(CPlusPlus20       , 1, 0, "C++20")
 LANGOPT(CPlusPlus2b       , 1, 0, "C++2b")
 LANGOPT(ObjC              , 1, 0, "Objective-C")
+LANGOPT(Logos             , 1, 0, "Logos")
 BENIGN_LANGOPT(ObjCDefaultSynthProperties , 1, 0,
                "Objective-C auto-synthesized properties")
 BENIGN_LANGOPT(EncodeExtendedBlockSig , 1, 0,

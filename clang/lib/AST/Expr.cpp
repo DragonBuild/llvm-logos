@@ -3783,6 +3783,7 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case ObjCBridgedCastExprClass:
   case ObjCMessageExprClass:
   case ObjCPropertyRefExprClass:
+  case ObjCOrigExprClass:
   // FIXME: Classify these cases better.
     if (IncludePossibleEffects)
       return true;
@@ -4285,6 +4286,27 @@ void ExtVectorElementExpr::getEncodedElementAccess(
 
     Elts.push_back(Index);
   }
+}
+
+ObjCOrigExpr::ObjCOrigExpr(ObjCMethodDecl *OMD, ArrayRef<Expr *> Args, SourceLocation at, SourceLocation rp) :
+       Expr(ObjCOrigExprClass, OMD->getReturnType(), VK_PRValue, OK_Ordinary),
+
+  AtLoc(at), RParenLoc(rp), OMD(OMD) {
+    setNumArgs(Args.size());
+    Expr **MyArgs = getArgs();
+    for (unsigned I = 0; I != Args.size(); ++I) {
+      MyArgs[I] = Args[I];
+    }
+}
+
+// ObjCMessageExpr
+Stmt::child_range ObjCOrigExpr::children() {
+  Stmt **begin;
+
+  begin = reinterpret_cast<Stmt **>(getArgs());
+
+  return child_range(begin,
+                     reinterpret_cast<Stmt **>(getArgs() + getNumArgs()));
 }
 
 ShuffleVectorExpr::ShuffleVectorExpr(const ASTContext &C, ArrayRef<Expr *> args,

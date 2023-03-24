@@ -1258,6 +1258,7 @@ CanThrowResult Sema::canThrow(const Stmt *S) {
   case Expr::ObjCMessageExprClass:
   case Expr::ObjCPropertyRefExprClass:
   case Expr::ObjCSubscriptRefExprClass:
+  case Expr::ObjCOrigExprClass: // FIXME: This may not be the correct spot.
     return CT_Can;
 
     // All the ObjC literals that are implemented as calls are

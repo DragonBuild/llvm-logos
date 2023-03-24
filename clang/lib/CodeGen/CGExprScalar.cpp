@@ -508,6 +508,10 @@ public:
     return EmitLoadOfLValue(E);
   }
 
+  Value *VisitObjCOrigExpr(ObjCOrigExpr *E) {
+    return CGF.EmitObjCOrigExpr(E);
+  }
+
   Value *VisitObjCSelectorExpr(ObjCSelectorExpr *E) {
     return CGF.EmitObjCSelectorExpr(E);
   }

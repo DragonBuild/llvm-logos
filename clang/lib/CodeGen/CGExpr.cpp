@@ -5460,9 +5460,14 @@ LValue CodeGenFunction::EmitObjCIvarRefLValue(const ObjCIvarRefExpr *E) {
     BaseQuals = ObjectTy.getQualifiers();
   }
 
-  LValue LV =
-    EmitLValueForIvar(ObjectTy, BaseValue, E->getDecl(),
-                      BaseQuals.getCVRQualifiers());
+  LValue LV;
+
+  if (isa<ObjCHookDecl>(CurCodeDecl->getDeclContext()))
+    LV = EmitLValueForIvarDynamic(ObjectTy, BaseValue, E->getDecl(),
+                                  BaseQuals.getCVRQualifiers());
+  else
+    LV = EmitLValueForIvar(ObjectTy, BaseValue, E->getDecl(),
+                           BaseQuals.getCVRQualifiers());
   setObjCGCLValueClass(getContext(), E, LV);
   return LV;
 }

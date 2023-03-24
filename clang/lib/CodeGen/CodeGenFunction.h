@@ -2126,6 +2126,47 @@ public:
                               const ObjCPropertyImplDecl *propImpl,
                               llvm::Constant *AtomicHelperFn);
 
+   //===--------------------------------------------------------------------===//
+   //                                  ObjC-Logos
+   //===--------------------------------------------------------------------===//
+
+   void GenerateLogosMethodHook(const ObjCMethodDecl *OMD, ObjCHookDecl *Hook);
+
+   /// GenerateObjCGetter - Synthesize an Objective-C property getter function.
+   void GenerateObjCGetter(ObjCHookDecl *Hook,
+                           const ObjCPropertyImplDecl *PID);
+
+   void GenerateObjCSetter(ObjCHookDecl *Hook,
+                           const ObjCPropertyImplDecl *PID);
+
+   llvm::GlobalVariable* GetPropertyKey(ObjCHookDecl *Hook,
+                                        const ObjCPropertyImplDecl *PID);
+
+   llvm::Function* StartLogosConstructor();
+   llvm::CallInst* EmitGetClassRuntimeCall(std::string ClassName);
+   llvm::CallInst* EmitObjectGetClassRuntimeCall(llvm::Value *O);
+   llvm::CallInst* EmitSelRegisterName(std::string selector);
+   llvm::CallInst* EmitGetIvarRuntimeCall(llvm::Value *clazz, std::string ivar);
+   llvm::CallInst* EmitGetIvarOffsetRuntimeCall(llvm::Value *ivar);
+
+   void EmitMessageHook(llvm::CallInst *_class,
+                        llvm::Value *message,
+                        llvm::Function* hook,
+                        llvm::Value *old);
+   void EmitNewMethod(llvm::CallInst *_class,
+                      llvm::Value *selector,
+                      llvm::Function *impl,
+                      ObjCMethodDecl *OMD);
+
+   llvm::Value* EmitDynamicIvarOffset(const ObjCIvarDecl *Ivar,
+                                      const ObjCInterfaceDecl *Interface);
+
+   LValue EmitLValueForIvarDynamic(QualType ObjectTy,
+                                   llvm::Value* Base, const ObjCIvarDecl *Ivar,
+                                   unsigned CVRQualifiers);
+
+   void GenerateHookConstructor(ObjCHookDecl *OHD);
+
   //===--------------------------------------------------------------------===//
   //                                  Block Bits
   //===--------------------------------------------------------------------===//
@@ -4340,6 +4381,8 @@ public:
   llvm::Value *EmitObjCSelectorExpr(const ObjCSelectorExpr *E);
   RValue EmitObjCMessageExpr(const ObjCMessageExpr *E,
                              ReturnValueSlot Return = ReturnValueSlot());
+
+  llvm::Value *EmitObjCOrigExpr(const ObjCOrigExpr *E);
 
   /// Retrieves the default cleanup kind for an ARC cleanup.
   /// Except under -fobjc-arc-eh, ARC cleanups are normal-only.

@@ -1652,6 +1652,7 @@ private:
   void emitIFuncDefinition(GlobalDecl GD);
   void emitCPUDispatchDefinition(GlobalDecl GD);
   void EmitObjCPropertyImplementations(const ObjCImplementationDecl *D);
+  void EmitObjCPropertyImplementations(const ObjCHookDecl *D);
   void EmitObjCIvarInitializations(ObjCImplementationDecl *D);
 
   // C++ related functions.
@@ -1680,14 +1681,14 @@ private:
 
   void EmitPointerToInitFunc(const VarDecl *VD, llvm::GlobalVariable *Addr,
                              llvm::Function *InitFunc, InitSegAttr *ISA);
-
+public:
   // FIXME: Hardcoding priority here is gross.
   void AddGlobalCtor(llvm::Function *Ctor, int Priority = 65535,
                      unsigned LexOrder = ~0U,
                      llvm::Constant *AssociatedData = nullptr);
   void AddGlobalDtor(llvm::Function *Dtor, int Priority = 65535,
                      bool IsDtorAttrFunc = false);
-
+private:
   /// EmitCtorList - Generates a global array of functions and priorities using
   /// the given list and name. This array will have appending linkage and is
   /// suitable for use as a LLVM constructor or destructor array. Clears Fns.

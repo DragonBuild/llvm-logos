@@ -3957,6 +3957,10 @@ static void RenderObjCOptions(const ToolChain &TC, const Driver &D,
       CmdArgs.push_back("-fno-objc-convert-messages-to-runtime-calls");
   }
 
+  // Handle -fobjc-logos
+  if (tools::isObjCLogos(Args)) {
+    CmdArgs.push_back("-fobjc-logos");
+  }
   // -fobjc-infer-related-result-type is the default, except in the Objective-C
   // rewriter.
   if (InferCovariantReturns)

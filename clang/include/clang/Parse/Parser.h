@@ -1730,6 +1730,7 @@ private:
 
   DeclGroupPtrTy ParseObjCAtImplementationDeclaration(SourceLocation AtLoc,
                                                       ParsedAttributes &Attrs);
+  DeclGroupPtrTy ParseObjCAtHookDeclaration(SourceLocation AtLoc);
   DeclGroupPtrTy ParseObjCAtEndDeclaration(SourceRange atEnd);
   Decl *ParseObjCAtAliasDeclaration(SourceLocation atLoc);
   Decl *ParseObjCPropertySynthesize(SourceLocation atLoc);
@@ -2064,6 +2065,7 @@ private:
   ExprResult ParseObjCEncodeExpression(SourceLocation AtLoc);
   ExprResult ParseObjCSelectorExpression(SourceLocation AtLoc);
   ExprResult ParseObjCProtocolExpression(SourceLocation AtLoc);
+  ExprResult ParseObjCOrigExpression(SourceLocation AtLoc);
   bool isSimpleObjCMessageExpression();
   ExprResult ParseObjCMessageExpression();
   ExprResult ParseObjCMessageExpressionBody(SourceLocation LBracloc,

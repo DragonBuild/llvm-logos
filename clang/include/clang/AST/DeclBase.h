@@ -54,6 +54,7 @@ class Module;
 class NamedDecl;
 class ObjCContainerDecl;
 class ObjCMethodDecl;
+class ObjCHookDecl;
 struct PrintingPolicy;
 class RecordDecl;
 class SourceManager;
@@ -1973,6 +1974,7 @@ public:
     switch (getDeclKind()) {
     case Decl::ObjCCategory:
     case Decl::ObjCCategoryImpl:
+    case Decl::ObjCHook:
     case Decl::ObjCImplementation:
     case Decl::ObjCInterface:
     case Decl::ObjCProtocol:

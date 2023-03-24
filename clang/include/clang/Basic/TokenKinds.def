@@ -76,6 +76,9 @@
 #ifndef OBJC_AT_KEYWORD
 #define OBJC_AT_KEYWORD(X)
 #endif
+#ifndef OBJC_LOGOS_KEYWORD
+#define OBJC_LOGOS_KEYWORD(X)
+#endif
 #ifndef TESTING_KEYWORD
 #define TESTING_KEYWORD(X, L) KEYWORD(X, L)
 #endif
@@ -788,6 +791,10 @@ OBJC_AT_KEYWORD(dynamic)
 OBJC_AT_KEYWORD(import)
 OBJC_AT_KEYWORD(available)
 
+OBJC_AT_KEYWORD(hook)
+OBJC_AT_KEYWORD(orig)
+OBJC_AT_KEYWORD(new)
+
 // TODO: What to do about context-sensitive keywords like:
 //       bycopy/byref/in/inout/oneway/out?
 
@@ -946,6 +953,7 @@ ANNOTATION(header_unit)
 #undef PRAGMA_ANNOTATION
 #undef ANNOTATION
 #undef TESTING_KEYWORD
+#undef OBJC_LOGOS_KEYWORD
 #undef OBJC_AT_KEYWORD
 #undef CXX_KEYWORD_OPERATOR
 #undef PPKEYWORD

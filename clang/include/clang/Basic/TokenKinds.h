@@ -40,6 +40,7 @@ enum PPKeywordKind {
 /// an '@'.
 enum ObjCKeywordKind {
 #define OBJC_AT_KEYWORD(X) objc_##X,
+#define OBJC_LOGOS_KEYWORD(X) objc_##X,
 #include "clang/Basic/TokenKinds.def"
   NUM_OBJC_KEYWORDS
 };

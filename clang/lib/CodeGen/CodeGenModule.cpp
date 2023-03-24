@@ -6178,6 +6178,27 @@ void CodeGenModule::EmitObjCPropertyImplementations(const
   }
 }
 
+void CodeGenModule::EmitObjCPropertyImplementations(const
+                                                    ObjCHookDecl *D) {
+  for (ObjCHookDecl::propimpl_iterator
+         i = D->propimpl_begin(), e = D->propimpl_end(); i != e; ++i) {
+    ObjCPropertyImplDecl *PID = *i;
+
+    if (PID->getPropertyImplementation() == ObjCPropertyImplDecl::Synthesize) {
+      ObjCPropertyDecl *PD = PID->getPropertyDecl();
+
+      if (!D->getInstanceMethod(PD->getGetterName()))
+        CodeGenFunction(*this).GenerateObjCGetter(
+                                 const_cast<ObjCHookDecl *>(D), PID);
+
+      if (!PD->isReadOnly() &&
+          !D->getInstanceMethod(PD->getSetterName()))
+        CodeGenFunction(*this).GenerateObjCSetter(
+                                 const_cast<ObjCHookDecl *>(D), PID);
+    }
+  }
+}
+
 static bool needsDestructMethod(ObjCImplementationDecl *impl) {
   const ObjCInterfaceDecl *iface = impl->getClassInterface();
   for (const ObjCIvarDecl *ivar = iface->all_declared_ivar_begin();
@@ -6439,11 +6460,26 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
             OMD->getClassInterface()), OMD->getLocation());
     break;
   }
+  case Decl::ObjCHook: {
+    ObjCHookDecl *OHD = cast<ObjCHookDecl>(D);
+    EmitObjCPropertyImplementations(OHD);
+    CodeGenFunction(*this).GenerateHookConstructor(OHD);
+    break;
+  }
   case Decl::ObjCMethod: {
     auto *OMD = cast<ObjCMethodDecl>(D);
     // If this is not a prototype, emit the body.
-    if (OMD->getBody())
-      CodeGenFunction(*this).GenerateObjCMethod(OMD);
+    if (OMD->getBody()) {
+
+      if (isa<ObjCHookDecl>(OMD->getDeclContext())) {
+        // Generate Logos method hook
+        CodeGenFunction(*this).GenerateLogosMethodHook(OMD,
+                                                       cast<ObjCHookDecl>(OMD->getDeclContext()));
+      }else{
+        // Generate normal method
+        CodeGenFunction(*this).GenerateObjCMethod(OMD);
+      }
+    }
     break;
   }
   case Decl::ObjCCompatibleAlias:

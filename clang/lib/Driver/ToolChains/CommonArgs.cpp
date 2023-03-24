@@ -1640,6 +1640,10 @@ void tools::AddAssemblerKPIC(const ToolChain &ToolChain, const ArgList &Args,
 bool tools::isObjCAutoRefCount(const ArgList &Args) {
   return Args.hasFlag(options::OPT_fobjc_arc, options::OPT_fno_objc_arc, false);
 }
+/// Determine whether ObjC-Logos is enabled.
+bool tools::isObjCLogos(const ArgList &Args) {
+  return Args.hasFlag(options::OPT_fobjc_logos, options::OPT_fno_objc_logos, false);
+}
 
 enum class LibGccType { UnspecifiedLibGcc, StaticLibGcc, SharedLibGcc };
 

@@ -14314,6 +14314,12 @@ TreeTransform<Derived>::TransformObjCDictionaryLiteral(
 
 template<typename Derived>
 ExprResult
+TreeTransform<Derived>::TransformObjCOrigExpr(ObjCOrigExpr *E) {
+  return ExprError(); // FIXME: Implement properly
+}
+
+template<typename Derived>
+ExprResult
 TreeTransform<Derived>::TransformObjCEncodeExpr(ObjCEncodeExpr *E) {
   TypeSourceInfo *EncodedTypeInfo
     = getDerived().TransformType(E->getEncodedTypeSourceInfo());

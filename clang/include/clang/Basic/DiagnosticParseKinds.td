@@ -472,7 +472,7 @@ def err_expected_minus_or_plus : Error<
 def err_objc_missing_end : Error<"missing '@end'">;
 def note_objc_container_start : Note<
   "%select{class|protocol|category|class extension|implementation"
-  "|category implementation}0 started here">;
+  "|category implementation|hook}0 started here">;
 def warn_objc_protocol_qualifier_missing_id : Warning<
   "protocol has no object type specified; defaults to qualified 'id'">;
 def err_objc_unknown_at : Error<"expected an Objective-C directive after '@'">;
@@ -506,6 +506,8 @@ def err_objc_property_requires_field_name : Error<
   "property requires fields to be named">;
 def err_objc_property_bitfield : Error<"property name cannot be a bit-field">;
 def err_objc_expected_property_attr : Error<"unknown property attribute %0">;
+def err_objc_new_requires_logos : Error<
+  "@new is a Logos feature">;
 def err_objc_unexpected_attr : Error<
   "prefix attribute must be followed by an interface, protocol, or implementation">;
 def err_objc_postfix_attribute : Error <
@@ -515,6 +517,8 @@ def err_objc_postfix_attribute_hint : Error <
   " them in front of '%select{@interface|@protocol}0'">;
 def err_objc_directive_only_in_protocol : Error<
   "directive may only be specified in protocols only">;
+def err_objc_directive_only_in_interface_or_category : Error<
+  "directive may only be specified in an interface or category">;
 def err_missing_catch_finally : Error<
   "@try statement without a @catch and @finally clause">;
 def err_objc_concat_string : Error<"unexpected token after Objective-C string">;
@@ -578,6 +582,9 @@ def warn_dangling_else : Warning<
   InGroup<DanglingElse>;
 def err_expected_member_or_base_name : Error<
   "expected class member or base class name">;
+def err_expected_ident : Error<"expected identifier">;
+def err_expected_ident_lparen : Error<"expected identifier or '('">;
+def err_expected_ident_lbrace : Error<"expected identifier or '{'">;
 def err_expected_lbrace_after_base_specifiers : Error<
   "expected '{' after base class list">;
 def err_missing_end_of_definition : Error<

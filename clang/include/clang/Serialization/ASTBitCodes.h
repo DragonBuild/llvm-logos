@@ -1779,6 +1779,9 @@ enum StmtCode {
   /// An ObjCMessageExpr record.
   EXPR_OBJC_MESSAGE_EXPR,
 
+  /// An ObjCOrigExpr record.
+  EXPR_OBJC_ORIG_EXPR,
+
   /// An ObjCIsa Expr record.
   EXPR_OBJC_ISA,
 

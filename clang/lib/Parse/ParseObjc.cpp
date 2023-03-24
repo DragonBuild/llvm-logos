@@ -46,6 +46,7 @@ void Parser::MaybeSkipAttributes(tok::ObjCKeywordKind Kind) {
 /// [OBJC]  objc-protocol-definition
 /// [OBJC]  objc-method-definition
 /// [OBJC]  '@' 'end'
+/// [OBJC-LOGOS] objc-hook-definition
 Parser::DeclGroupPtrTy
 Parser::ParseObjCAtDirectives(ParsedAttributes &DeclAttrs,
                               ParsedAttributes &DeclSpecAttrs) {
@@ -102,6 +103,9 @@ Parser::ParseObjCAtDirectives(ParsedAttributes &DeclAttrs,
     Diag(AtLoc, diag::err_atimport);
     SkipUntil(tok::semi);
     return Actions.ConvertDeclToDeclGroup(nullptr);
+  case tok::objc_hook:
+    // k: dunno // if (getLangOpts().Logos)
+      return ParseObjCAtHookDeclaration(AtLoc);
   default:
     Diag(AtLoc, diag::err_unexpected_at);
     SkipUntil(tok::semi);
@@ -753,7 +757,19 @@ void Parser::ParseObjCInterfaceDeclList(tok::ObjCKeywordKind contextKey,
       else
         MethodImplKind = DirectiveKind;
       break;
+    case tok::objc_new:
+      // This is only valid on interfaces.
+      if (!getLangOpts().Logos)
+        Diag(AtLoc, diag::err_objc_new_requires_logos);
 
+      if (contextKey == tok::objc_interface
+          || isa<ObjCCategoryDecl>(CDecl)) {
+        MethodImplKind = DirectiveKind;
+      }else{
+        Diag(AtLoc, diag::err_objc_directive_only_in_interface_or_category);
+      }
+
+      break;
     case tok::objc_property:
       ObjCDeclSpec OCDS;
       SourceLocation LParenLoc;
@@ -2284,6 +2300,49 @@ Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc,
 }
 
 Parser::DeclGroupPtrTy
+Parser::ParseObjCAtHookDeclaration(SourceLocation AtLoc) {
+  assert(Tok.isObjCAtKeyword(tok::objc_hook) &&
+         "ParseObjCAtHookDeclaration(): Expected @hook");
+
+  CheckNestedObjCContexts(AtLoc);
+  ConsumeToken(); // the "hook" identifier
+
+  // TODO: Code completion
+
+  if (Tok.isNot(tok::identifier)) {
+    Diag(Tok, diag::err_expected_ident); // missing class name
+    return DeclGroupPtrTy();
+  }
+
+  // We have a class name - consume it
+  IdentifierInfo *nameId = Tok.getIdentifierInfo();
+  SourceLocation nameLoc = ConsumeToken(); // consume class name
+  Decl *HookDecl = 0;
+
+  HookDecl = Actions.ActOnStartHook(AtLoc, nameId, nameLoc);
+
+  assert(HookDecl);
+
+  SmallVector<Decl *, 8> DeclsInGroup;
+
+  {
+    ObjCImplParsingDataRAII ObjCImplParsing(*this, HookDecl);
+    while (!ObjCImplParsing.isFinished() && Tok.isNot(tok::eof)) {
+      ParsedAttributes attrs(AttrFactory);
+      MaybeParseCXX11Attributes(attrs);
+      MaybeParseMicrosoftAttributes(attrs);
+      ParsedAttributes EmptyDeclSpecAttrs(AttrFactory);
+      if (DeclGroupPtrTy DGP = ParseExternalDeclaration(attrs, EmptyDeclSpecAttrs)) {
+        DeclGroupRef DG = DGP.get();
+        DeclsInGroup.append(DG.begin(), DG.end());
+      }
+    }
+  }
+
+  return Actions.ActOnFinishObjCImplementation(HookDecl, DeclsInGroup);
+}
+
+Parser::DeclGroupPtrTy
 Parser::ParseObjCAtEndDeclaration(SourceRange atEnd) {
   assert(Tok.isObjCAtKeyword(tok::objc_end) &&
          "ParseObjCAtEndDeclaration(): Expected @end");
@@ -2904,6 +2963,8 @@ ExprResult Parser::ParseObjCAtExpression(SourceLocation AtLoc) {
       return ParsePostfixExpressionSuffix(ParseObjCProtocolExpression(AtLoc));
     case tok::objc_selector:
       return ParsePostfixExpressionSuffix(ParseObjCSelectorExpression(AtLoc));
+    case tok::objc_orig:
+      return ParseObjCOrigExpression(AtLoc);
     case tok::objc_available:
       return ParseAvailabilityCheckExpr(AtLoc);
       default: {
@@ -3571,6 +3632,39 @@ ExprResult Parser::ParseObjCDictionaryLiteral(SourceLocation AtLoc) {
   // Create the ObjCDictionaryLiteral.
   return Actions.BuildObjCDictionaryLiteral(SourceRange(AtLoc, EndLoc),
                                             Elements);
+}
+
+///    objc-logos-orig-expression
+///      \@orig ( args )
+ExprResult
+Parser::ParseObjCOrigExpression(SourceLocation AtLoc) {
+  assert(Tok.isObjCAtKeyword(tok::objc_orig) && "Not an @orig expression!");
+
+  SourceLocation OrigLoc = ConsumeToken(); // the 'orig' token
+
+  // Throw error if no parentheses follow
+  // TODO: Call @orig with original function arguments if no parenthesis present.
+  if (Tok.isNot(tok::l_paren))
+    return ExprError(Diag(Tok, diag::err_expected_lparen_after) << "@orig");
+
+  ExprVector ArgExprs;
+  SmallVector<SourceLocation, 20> CommaLocs;
+
+  BalancedDelimiterTracker T(*this, tok::l_paren);
+  T.consumeOpen();
+
+  if (Tok.isNot(tok::r_paren)) {
+    if (ParseExpressionList(ArgExprs, llvm::function_ref<void()>(),
+                            /*FailImmediatelyOnInvalidExpr=*/true,
+                            /*EarlyTypoCorrection=*/true)) {
+      SkipUntil(tok::r_paren, StopAtSemi);
+      return ExprError();
+    }
+  }
+
+  T.consumeClose();
+
+  return Actions.BuildObjCOrigExpression(OrigLoc, ArgExprs, T.getCloseLocation());
 }
 
 ///    objc-encode-expression:

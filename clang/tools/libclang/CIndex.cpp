@@ -5641,6 +5641,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("ObjCEncodeExpr");
   case CXCursor_ObjCSelectorExpr:
     return cxstring::createRef("ObjCSelectorExpr");
+  case CXCursor_ObjCOrigExpr:
+      return cxstring::createRef("ObjCOrigExpr");
   case CXCursor_ObjCProtocolExpr:
     return cxstring::createRef("ObjCProtocolExpr");
   case CXCursor_ObjCBridgedCastExpr:
@@ -6775,6 +6777,7 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
   case Decl::TemplateTemplateParm:
   case Decl::ObjCCategoryImpl:
   case Decl::ObjCImplementation:
+  case Decl::ObjCHook:
   case Decl::AccessSpec:
   case Decl::LinkageSpec:
   case Decl::Export:

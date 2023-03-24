@@ -1078,8 +1078,20 @@ protected:
                                   const ObjCMethodDecl *OMD,
                                   const ObjCInterfaceDecl *ClassReceiver,
                                   const ObjCCommonTypesHelper &ObjCTypes);
+  CodeGen::RValue
+  EmitMessageSend(CodeGen::CodeGenFunction &CGF,
+                                   ReturnValueSlot Return,
+                                   QualType ResultType,
+                                   llvm::Value *SelValue,
+                                   llvm::Value *Arg0,
+                                   QualType Arg0Ty,
+                                   bool IsSuper,
+                                   const CallArgList &CallArgs,
+                                   const ObjCMethodDecl *Method,
+                                   const ObjCInterfaceDecl *ClassReceiver,
+                                   const ObjCCommonTypesHelper &ObjCTypes);
 
-  /// EmitImageInfo - Emit the image info marker used to encode some module
+      /// EmitImageInfo - Emit the image info marker used to encode some module
   /// level information.
   void EmitImageInfo();
 
@@ -1327,6 +1339,14 @@ public:
                                       const ObjCInterfaceDecl *Class,
                                       const ObjCMethodDecl *Method) override;
 
+  CodeGen::RValue GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                                              ReturnValueSlot ReturnSlot,
+                                              QualType ResultType,
+                                              llvm::Value *Sel,
+                                              llvm::Value *Receiver,
+                                              const CallArgList &CallArgs,
+                                              const ObjCInterfaceDecl *Class,
+                                              const ObjCMethodDecl *Method) override;
   CodeGen::RValue
   GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
                            ReturnValueSlot Return, QualType ResultType,
@@ -1616,6 +1636,14 @@ public:
                                       const ObjCInterfaceDecl *Class,
                                       const ObjCMethodDecl *Method) override;
 
+  CodeGen::RValue GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                                              ReturnValueSlot ReturnSlot,
+                                              QualType ResultType,
+                                              llvm::Value *Sel,
+                                              llvm::Value *Receiver,
+                                              const CallArgList &CallArgs,
+                                              const ObjCInterfaceDecl *Class,
+                                              const ObjCMethodDecl *Method) override;
   CodeGen::RValue
   GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
                            ReturnValueSlot Return, QualType ResultType,
@@ -2114,6 +2142,20 @@ CGObjCMac::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
                          ObjCTypes);
 }
 
+CodeGen::RValue CGObjCMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                                               ReturnValueSlot Return,
+                                               QualType ResultType,
+                                               llvm::Value *Sel,
+                                               llvm::Value *Receiver,
+                                               const CallArgList &CallArgs,
+                                               const ObjCInterfaceDecl *Class,
+                                               const ObjCMethodDecl *Method) {
+  return EmitMessageSend(CGF, Return, ResultType,
+                         Sel,
+                         Receiver, CGF.getContext().getObjCIdType(),
+                         false, CallArgs, Method, Class, ObjCTypes);
+}
+
 /// Generate code for a message send expression.
 CodeGen::RValue CGObjCMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
                                                ReturnValueSlot Return,
@@ -2126,6 +2168,109 @@ CodeGen::RValue CGObjCMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
   return EmitMessageSend(CGF, Return, ResultType, Sel, Receiver,
                          CGF.getContext().getObjCIdType(), false, CallArgs,
                          Method, Class, ObjCTypes);
+}
+
+
+CodeGen::RValue
+CGObjCCommonMac::EmitMessageSend(CodeGen::CodeGenFunction &CGF,
+                                 ReturnValueSlot Return,
+                                 QualType ResultType,
+                                 llvm::Value *SelValue,
+                                 llvm::Value *Arg0,
+                                 QualType Arg0Ty,
+                                 bool IsSuper,
+                                 const CallArgList &CallArgs,
+                                 const ObjCMethodDecl *Method,
+                                 const ObjCInterfaceDecl *ClassReceiver,
+                                 const ObjCCommonTypesHelper &ObjCTypes) {
+  CodeGenTypes &Types = CGM.getTypes();
+  auto selTy = CGF.getContext().getObjCSelType();
+
+  CallArgList ActualArgs;
+  if (!IsSuper)
+    Arg0 = CGF.Builder.CreateBitCast(Arg0, ObjCTypes.ObjectPtrTy);
+  ActualArgs.add(RValue::get(Arg0), Arg0Ty);
+  if (!Method || !Method->isDirectMethod())
+    ActualArgs.add(RValue::get(SelValue), selTy);
+  ActualArgs.addFrom(CallArgs);
+
+  // If we're calling a method, use the formal signature.
+  MessageSendInfo MSI = getMessageSendInfo(Method, ResultType, ActualArgs);
+
+  if (Method)
+    assert(CGM.getContext().getCanonicalType(Method->getReturnType()) ==
+               CGM.getContext().getCanonicalType(ResultType) &&
+           "Result type mismatch!");
+
+  bool ReceiverCanBeNull =
+      canMessageReceiverBeNull(CGF, Method, IsSuper, ClassReceiver, Arg0);
+
+  bool RequiresNullCheck = false;
+  bool RequiresSelValue = true;
+
+  llvm::FunctionCallee Fn = nullptr;
+  if (Method && Method->isDirectMethod()) {
+    assert(!IsSuper);
+    Fn = GenerateDirectMethod(Method, Method->getClassInterface());
+    // Direct methods will synthesize the proper `_cmd` internally,
+    // so just don't bother with setting the `_cmd` argument.
+    RequiresSelValue = false;
+  } else if (CGM.ReturnSlotInterferesWithArgs(MSI.CallInfo)) {
+    if (ReceiverCanBeNull) RequiresNullCheck = true;
+    Fn = (ObjCABI == 2) ?  ObjCTypes.getSendStretFn2(IsSuper)
+                        : ObjCTypes.getSendStretFn(IsSuper);
+  } else if (CGM.ReturnTypeUsesFPRet(ResultType)) {
+    Fn = (ObjCABI == 2) ? ObjCTypes.getSendFpretFn2(IsSuper)
+                        : ObjCTypes.getSendFpretFn(IsSuper);
+  } else if (CGM.ReturnTypeUsesFP2Ret(ResultType)) {
+    Fn = (ObjCABI == 2) ? ObjCTypes.getSendFp2RetFn2(IsSuper)
+                        : ObjCTypes.getSendFp2retFn(IsSuper);
+  } else {
+    // arm64 uses objc_msgSend for stret methods and yet null receiver check
+    // must be made for it.
+    if (ReceiverCanBeNull && CGM.ReturnTypeUsesSRet(MSI.CallInfo))
+      RequiresNullCheck = true;
+    Fn = (ObjCABI == 2) ? ObjCTypes.getSendFn2(IsSuper)
+                        : ObjCTypes.getSendFn(IsSuper);
+  }
+
+  // Cast function to proper signature
+  llvm::Constant *BitcastFn = cast<llvm::Constant>(
+      CGF.Builder.CreateBitCast(Fn.getCallee(), MSI.MessengerType));
+
+  // We don't need to emit a null check to zero out an indirect result if the
+  // result is ignored.
+  if (Return.isUnused())
+    RequiresNullCheck = false;
+
+  // Emit a null-check if there's a consumed argument other than the receiver.
+  if (!RequiresNullCheck && Method && Method->hasParamDestroyedInCallee())
+    RequiresNullCheck = true;
+
+  NullReturnState nullReturn;
+  if (RequiresNullCheck) {
+    nullReturn.init(CGF, Arg0);
+  }
+
+  // If a selector value needs to be passed, emit the load before the call.
+  if (RequiresSelValue) {
+    // CLANG-LOGOS/cynder - We already emit the load before calling this.
+    ActualArgs[1] = CallArg(RValue::get(SelValue), selTy);
+  }
+
+  llvm::CallBase *CallSite;
+  CGCallee Callee = CGCallee::forDirect(BitcastFn);
+  RValue rvalue = CGF.EmitCall(MSI.CallInfo, Callee, Return, ActualArgs,
+                               &CallSite);
+
+  // Mark the call as noreturn if the method is marked noreturn and the
+  // receiver cannot be null.
+  if (Method && Method->hasAttr<NoReturnAttr>() && !ReceiverCanBeNull) {
+    CallSite->setDoesNotReturn();
+  }
+
+  return nullReturn.complete(CGF, Return, rvalue, ResultType, CallArgs,
+                             RequiresNullCheck ? Method : nullptr);
 }
 
 CodeGen::RValue
@@ -7401,6 +7546,20 @@ CGObjCNonFragileABIMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
     : EmitMessageSend(CGF, Return, ResultType, Sel,
                       Receiver, CGF.getContext().getObjCIdType(),
                       false, CallArgs, Method, Class, ObjCTypes);
+}
+
+CodeGen::RValue
+CGObjCNonFragileABIMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                                            ReturnValueSlot Return,
+                                            QualType ResultType,
+                                            llvm::Value *Sel,
+                                            llvm::Value *Receiver,
+                                            const CallArgList &CallArgs,
+                                            const ObjCInterfaceDecl *Class,
+                                            const ObjCMethodDecl *Method) {
+  return EmitMessageSend(CGF, Return, ResultType, Sel,
+                         Receiver, CGF.getContext().getObjCIdType(),
+                         false, CallArgs, Method, Class, ObjCTypes);
 }
 
 llvm::Constant *

@@ -40,6 +40,11 @@
 #include <string>
 #include <utility>
 
+namespace llvm {
+class Function;
+class GlobalVariable;
+}
+
 namespace clang {
 
 class ASTContext;
@@ -140,7 +145,7 @@ class ObjCMethodDecl : public NamedDecl, public DeclContext {
   // to save some space. Use the provided accessors to access it.
 
 public:
-  enum ImplementationControl { None, Required, Optional };
+  enum ImplementationControl { None, Required, Optional, New };
 
 private:
   /// Return type of this method.
@@ -2763,6 +2768,56 @@ public:
 };
 
 raw_ostream &operator<<(raw_ostream &OS, const ObjCImplementationDecl &ID);
+
+/// ObjCHookDecl - Represents a class hook definition - this is where
+/// method hooks are specified. For example:
+///
+/// @code
+/// \@hook MyClass
+/// - (void)myMethod { /* do something */ }
+/// \@end
+/// @endcode
+///
+class ObjCHookDecl : public ObjCImplDecl {
+  virtual void anchor();
+
+  /// MethodDefinitions - map of methods which have been defined in
+  /// this hook.
+  llvm::DenseMap<const ObjCMethodDecl*, llvm::Function*> MethodDefinitions;
+
+  /// OrigPointers - map of hooked methods to their original implementations
+  llvm::DenseMap<const ObjCMethodDecl*, llvm::GlobalVariable*> OrigPointers;
+
+  /// PropertyKeys - map of property decls to their unique key for ObjC
+  /// associated objects
+  llvm::DenseMap<const ObjCPropertyImplDecl*, llvm::GlobalVariable*>
+      PropertyKeys;
+
+  ObjCHookDecl(DeclContext *DC,
+               ObjCInterfaceDecl *classInterface,
+               SourceLocation nameLoc, SourceLocation atStartLoc)
+      : ObjCImplDecl(ObjCHook, DC, classInterface, classInterface ? classInterface->getIdentifier()
+                                                                  : nullptr, nameLoc, atStartLoc) {}
+public:
+  static ObjCHookDecl *Create(ASTContext &C, DeclContext *DC,
+                              ObjCInterfaceDecl *classInterface,
+                              SourceLocation nameLoc,
+                              SourceLocation atStartLoc);
+
+  void RegisterMethodDefinition(const ObjCMethodDecl *OMD, llvm::Function *Fn);
+  llvm::Function *GetMethodDefinition(const ObjCMethodDecl *OMD);
+
+  void RegisterOrigPointer(const ObjCMethodDecl *OMD, llvm::GlobalVariable *Gv);
+  llvm::GlobalVariable *GetOrigPointer(const ObjCMethodDecl *OMD);
+
+  void RegisterPropertyKey(const ObjCPropertyImplDecl *OPD,
+                           llvm::GlobalVariable *Gv);
+  llvm::GlobalVariable *GetPropertyKey(const ObjCPropertyImplDecl *OPD);
+
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) { return K == ObjCHook; }
+
+};
 
 /// ObjCCompatibleAliasDecl - Represents alias of a class. This alias is
 /// declared as \@compatibility_alias alias class.

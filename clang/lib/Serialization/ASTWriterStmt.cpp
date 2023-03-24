@@ -1322,6 +1322,14 @@ void ASTStmtWriter::VisitObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
   Code = serialization::EXPR_OBJC_DICTIONARY_LITERAL;
 }
 
+void ASTStmtWriter::VisitObjCOrigExpr(ObjCOrigExpr *E) {
+  VisitExpr(E);
+  Record.AddSourceLocation(E->getAtLoc());
+  Record.AddSourceLocation(E->getRParenLoc());
+  Code = serialization::EXPR_OBJC_ORIG_EXPR;
+  // FIXME: What about Args?
+}
+
 void ASTStmtWriter::VisitObjCEncodeExpr(ObjCEncodeExpr *E) {
   VisitExpr(E);
   Record.AddTypeSourceInfo(E->getEncodedTypeSourceInfo());

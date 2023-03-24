@@ -4067,6 +4067,9 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
     if (Args.hasArg(OPT_fobjc_subscripting_legacy_runtime))
       Opts.ObjCSubscriptingLegacyRuntime =
         (Opts.ObjCRuntime.getKind() == ObjCRuntime::FragileMacOSX);
+
+    if (Args.hasArg(OPT_fobjc_logos))
+      Opts.Logos = 1;
   }
 
   if (Opts.CPlusPlusModules && !Opts.ModulesLocalVisibility)

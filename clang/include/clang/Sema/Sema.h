@@ -7550,7 +7550,9 @@ public:
 
   ExprResult BuildObjCDictionaryLiteral(SourceRange SR,
                                MutableArrayRef<ObjCDictionaryElement> Elements);
-
+  ExprResult BuildObjCOrigExpression(SourceLocation AtLoc,
+                                     ArrayRef<Expr *> Args,
+                                     SourceLocation RParenLoc);
   ExprResult BuildObjCEncodeExpression(SourceLocation AtLoc,
                                   TypeSourceInfo *EncodedTypeInfo,
                                   SourceLocation RParenLoc);
@@ -10252,7 +10254,8 @@ public:
     OCK_Category,
     OCK_ClassExtension,
     OCK_Implementation,
-    OCK_CategoryImplementation
+    OCK_CategoryImplementation,
+    OCK_Hook
   };
   ObjCContainerKind getObjCContainerKind() const;
 
@@ -10329,6 +10332,8 @@ public:
       SourceLocation ClassLoc, IdentifierInfo *CatName, SourceLocation CatLoc,
       const ParsedAttributesView &AttrList);
 
+  Decl *ActOnStartHook(SourceLocation AtHookLoc,
+                       IdentifierInfo *ClassName, SourceLocation ClassLoc);
   DeclGroupPtrTy ActOnFinishObjCImplementation(Decl *ObjCImpDecl,
                                                ArrayRef<Decl *> Decls);
 

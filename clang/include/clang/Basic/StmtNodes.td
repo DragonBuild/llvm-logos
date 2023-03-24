@@ -178,6 +178,7 @@ def ObjCBoxedExpr : StmtNode<Expr>;
 def ObjCArrayLiteral : StmtNode<Expr>;
 def ObjCDictionaryLiteral : StmtNode<Expr>;
 def ObjCEncodeExpr : StmtNode<Expr>;
+def ObjCOrigExpr : StmtNode<Expr>;
 def ObjCMessageExpr : StmtNode<Expr>;
 def ObjCSelectorExpr : StmtNode<Expr>;
 def ObjCProtocolExpr : StmtNode<Expr>;
