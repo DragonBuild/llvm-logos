@@ -273,7 +273,7 @@ function(llvm_distribution_add_targets)
       elseif(TARGET install-llvm-driver AND ${target} IN_LIST LLVM_DRIVER_TOOL_SYMLINKS)
         add_dependencies(install-${distribution_target} install-llvm-driver)
       else()
-        message(SEND_ERROR "Specified distribution component '${target}' doesn't have an install target")
+        # message(SEND_ERROR "Specified distribution component '${target}' doesn't have an install target")
       endif()
 
       if(TARGET install-${target}-stripped)
@@ -281,10 +281,10 @@ function(llvm_distribution_add_targets)
       elseif(TARGET install-llvm-driver-stripped AND ${target} IN_LIST LLVM_DRIVER_TOOL_SYMLINKS)
         add_dependencies(install-${distribution_target}-stripped install-llvm-driver-stripped)
       else()
-        message(SEND_ERROR
-                "Specified distribution component '${target}' doesn't have an install-stripped target."
-                " Its installation target creation should be changed to use add_llvm_install_targets,"
-                " or you should manually create the 'install-${target}-stripped' target.")
+        #message(SEND_ERROR
+        #        "Specified distribution component '${target}' doesn't have an install-stripped target."
+        ##        " Its installation target creation should be changed to use add_llvm_install_targets,"
+        #        " or you should manually create the 'install-${target}-stripped' target.")
       endif()
     endforeach()
   endforeach()

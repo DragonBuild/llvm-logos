@@ -759,8 +759,8 @@ void Parser::ParseObjCInterfaceDeclList(tok::ObjCKeywordKind contextKey,
       break;
     case tok::objc_new:
       // This is only valid on interfaces.
-      if (!getLangOpts().Logos)
-        Diag(AtLoc, diag::err_objc_new_requires_logos);
+      //if (!getLangOpts().Logos)
+      //  Diag(AtLoc, diag::err_objc_new_requires_logos);
 
       if (contextKey == tok::objc_interface
           || isa<ObjCCategoryDecl>(CDecl)) {

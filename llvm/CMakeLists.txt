@@ -561,7 +561,7 @@ set(LLVM_TARGETS_TO_BUILD
 list(REMOVE_DUPLICATES LLVM_TARGETS_TO_BUILD)
 
 option(LLVM_ENABLE_PIC "Build Position-Independent Code" ON)
-option(LLVM_ENABLE_MODULES "Compile with C++ modules enabled." OFF)
+option(LLVM_ENABLE_MODULES "Compile with C++ modules enabled." ON)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   option(LLVM_ENABLE_MODULE_DEBUGGING "Compile with -gmodules." ON)
 else()
