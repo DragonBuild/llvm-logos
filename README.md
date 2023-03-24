@@ -9,6 +9,8 @@ Implementing it directly in LLVM as opposed to via a preprocessor allows:
 * Utilizing clangd / other development tools. Yes, this includes autocomplete/similar features in any editor supporting clangd
 * Better error/warning output
 
+
+
 And from a development standpoint:
 * Far more flexibility, ease of maintenance, from a language standpoint. 
 * Not having to write/read perl
@@ -17,7 +19,11 @@ This project is still in active development, and has a ways to go before reachin
 
 I'll update this README.md in the future with better info.
 
-This is a modern continuation of Evan Swick's https://github.com/eswick/clang-logos, continued in his memory. 
+---
+
+This is a modern continuation of Evan Swick's https://github.com/eswick/clang-logos, who has unfortunately since passed away. 
+
+Its maintenance has since been continued by cynder
 
 
 
