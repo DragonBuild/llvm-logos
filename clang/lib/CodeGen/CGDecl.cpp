@@ -83,6 +83,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::ObjCCategoryImpl:
   case Decl::ObjCImplementation:
   case Decl::ObjCHook:
+  case Decl::ObjCGroup:
   case Decl::ObjCProperty:
   case Decl::ObjCCompatibleAlias:
   case Decl::PragmaComment:

@@ -6778,6 +6778,7 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
   case Decl::ObjCCategoryImpl:
   case Decl::ObjCImplementation:
   case Decl::ObjCHook:
+  case Decl::ObjCGroup:
   case Decl::AccessSpec:
   case Decl::LinkageSpec:
   case Decl::Export:

@@ -151,6 +151,10 @@ public:
                    StringRef CategoryContextExtSymbolDefinedIn) {
     generateUSRForObjCHook(cls, Out, ExtSymDefinedIn, CategoryContextExtSymbolDefinedIn);
   }
+  void GenObjCGroup(StringRef cls, StringRef ExtSymDefinedIn,
+                   StringRef CategoryContextExtSymbolDefinedIn) {
+    generateUSRForObjCGroup(cls, Out, ExtSymDefinedIn, CategoryContextExtSymbolDefinedIn);
+  }
 
   /// Generate a USR for an Objective-C class category.
   void GenObjCCategory(StringRef cls, StringRef cat,
@@ -435,6 +439,10 @@ void USRGenerator::VisitObjCContainerDecl(const ObjCContainerDecl *D,
       break;
     case Decl::ObjCHook: {
       GenObjCHook(D->getName(), GetExternalSourceContainer(D), GetExternalSourceContainer(CatD));
+      break;
+    }
+    case Decl::ObjCGroup: {
+      GenObjCGroup(D->getName(), GetExternalSourceContainer(D), GetExternalSourceContainer(CatD));
       break;
     }
     case Decl::ObjCCategory: {
@@ -1101,11 +1109,19 @@ void clang::index::generateUSRForObjCClass(StringRef Cls, raw_ostream &OS,
 }
 
 void clang::index::generateUSRForObjCHook(StringRef Cls, raw_ostream &OS,
-                                           StringRef ExtSymDefinedIn,
-                                           StringRef CategoryContextExtSymbolDefinedIn) {
+                                          StringRef ExtSymDefinedIn,
+                                          StringRef CategoryContextExtSymbolDefinedIn) {
   combineClassAndCategoryExtContainers(ExtSymDefinedIn,
                                        CategoryContextExtSymbolDefinedIn, OS);
   OS << "objc(hk)" << Cls;
+}
+
+void clang::index::generateUSRForObjCGroup(StringRef Cls, raw_ostream &OS,
+                                          StringRef ExtSymDefinedIn,
+                                          StringRef CategoryContextExtSymbolDefinedIn) {
+  combineClassAndCategoryExtContainers(ExtSymDefinedIn,
+                                       CategoryContextExtSymbolDefinedIn, OS);
+  OS << "objc(gp)" << Cls;
 }
 
 void clang::index::generateUSRForObjCCategory(StringRef Cls, StringRef Cat,

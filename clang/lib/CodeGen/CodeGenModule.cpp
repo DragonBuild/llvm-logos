@@ -6463,7 +6463,13 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
   case Decl::ObjCHook: {
     ObjCHookDecl *OHD = cast<ObjCHookDecl>(D);
     EmitObjCPropertyImplementations(OHD);
-    CodeGenFunction(*this).GenerateHookConstructor(OHD);
+    if (!OHD->GetGroup())
+      CodeGenFunction(*this).GenerateHookConstructor(OHD);
+    break;
+  }
+  case Decl::ObjCGroup: {
+    ObjCGroupDecl* OGD = cast<ObjCGroupDecl>(D);
+    CodeGenFunction(*this).GenerateGroupConstructor(OGD);
     break;
   }
   case Decl::ObjCMethod: {

@@ -106,6 +106,8 @@ Parser::ParseObjCAtDirectives(ParsedAttributes &DeclAttrs,
   case tok::objc_hook:
     // k: dunno // if (getLangOpts().Logos)
       return ParseObjCAtHookDeclaration(AtLoc);
+  case tok::objc_group:
+      return ParseObjCAtGroupDeclaration(AtLoc);
   default:
     Diag(AtLoc, diag::err_unexpected_at);
     SkipUntil(tok::semi);
@@ -187,7 +189,7 @@ Parser::ParseObjCAtClassDeclaration(SourceLocation atLoc) {
 void Parser::CheckNestedObjCContexts(SourceLocation AtLoc)
 {
   Sema::ObjCContainerKind ock = Actions.getObjCContainerKind();
-  if (ock == Sema::OCK_None)
+  if (ock == Sema::OCK_None || ock == Sema::OCK_Group)
     return;
 
   Decl *Decl = Actions.getObjCDeclContext();
@@ -2300,6 +2302,52 @@ Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc,
 }
 
 Parser::DeclGroupPtrTy
+Parser::ParseObjCAtGroupDeclaration(SourceLocation AtLoc)
+{
+  assert(Tok.isObjCAtKeyword(tok::objc_group) &&
+         "ParseObjCAtGroupDeclaration(): Expected @group");
+
+  CheckNestedObjCContexts(AtLoc);
+  ConsumeToken(); // the "hook" identifier
+
+  // TODO: Code completion
+
+  if (Tok.isNot(tok::identifier)) {
+    Diag(Tok, diag::err_expected_ident); // missing class name
+    return DeclGroupPtrTy();
+  }
+
+  // We have a class name - consume it
+  IdentifierInfo *nameId = Tok.getIdentifierInfo();
+  SourceLocation nameLoc = ConsumeToken(); // consume class name
+  Decl *GroupDecl = 0;
+
+  GroupDecl = Actions.ActOnStartGroup(AtLoc, nameId, nameLoc);
+
+  assert(GroupDecl);
+
+  SmallVector<Decl *, 8> DeclsInGroup;
+
+  {
+    ObjCGroupParsingDataRAII ObjCGroupParsing(*this, GroupDecl);
+    while (!ObjCGroupParsing.isFinished() && Tok.isNot(tok::eof)) {
+      ParsedAttributes attrs(AttrFactory);
+      MaybeParseCXX11Attributes(attrs);
+      MaybeParseMicrosoftAttributes(attrs);
+      ParsedAttributes EmptyDeclSpecAttrs(AttrFactory);
+      if (DeclGroupPtrTy DGP = ParseExternalDeclaration(attrs, EmptyDeclSpecAttrs)) {
+        DeclGroupRef DG = DGP.get();
+        DeclsInGroup.append(DG.begin(), DG.end());
+      }
+    }
+  }
+
+  // this works \/
+  return Actions.ActOnFinishObjCImplementation(GroupDecl, DeclsInGroup);
+}
+
+
+Parser::DeclGroupPtrTy
 Parser::ParseObjCAtHookDeclaration(SourceLocation AtLoc) {
   assert(Tok.isObjCAtKeyword(tok::objc_hook) &&
          "ParseObjCAtHookDeclaration(): Expected @hook");
@@ -2319,7 +2367,7 @@ Parser::ParseObjCAtHookDeclaration(SourceLocation AtLoc) {
   SourceLocation nameLoc = ConsumeToken(); // consume class name
   Decl *HookDecl = 0;
 
-  HookDecl = Actions.ActOnStartHook(AtLoc, nameId, nameLoc);
+  HookDecl = Actions.ActOnStartHook(AtLoc, nameId, nameLoc, CurParsedObjCGroup && !CurParsedObjCGroup->isFinished() ? dyn_cast_or_null<ObjCGroupDecl>(CurParsedObjCGroup->Dcl) : nullptr);
 
   assert(HookDecl);
 
@@ -2349,6 +2397,8 @@ Parser::ParseObjCAtEndDeclaration(SourceRange atEnd) {
   ConsumeToken(); // the "end" identifier
   if (CurParsedObjCImpl)
     CurParsedObjCImpl->finish(atEnd);
+  else if (CurParsedObjCGroup)
+    CurParsedObjCGroup->finish(atEnd);
   else
     // missing @implementation
     Diag(atEnd.getBegin(), diag::err_expected_objc_container);
@@ -2385,10 +2435,30 @@ void Parser::ObjCImplParsingDataRAII::finish(SourceRange AtEnd) {
 
   /// Clear and free the cached objc methods.
   for (LateParsedObjCMethodContainer::iterator
-         I = LateParsedObjCMethods.begin(),
-         E = LateParsedObjCMethods.end(); I != E; ++I)
+           I = LateParsedObjCMethods.begin(),
+           E = LateParsedObjCMethods.end(); I != E; ++I)
     delete *I;
   LateParsedObjCMethods.clear();
+
+  Finished = true;
+}
+
+Parser::ObjCGroupParsingDataRAII::~ObjCGroupParsingDataRAII() {
+  if (!Finished) {
+    finish(P.Tok.getLocation());
+    if (P.isEofOrEom()) {
+      P.Diag(P.Tok, diag::err_objc_missing_end)
+          << FixItHint::CreateInsertion(P.Tok.getLocation(), "\n@end\n");
+      P.Diag(Dcl->getBeginLoc(), diag::note_objc_container_start)
+          << Sema::OCK_Implementation;
+    }
+  }
+  P.CurParsedObjCGroup = nullptr;
+}
+
+void Parser::ObjCGroupParsingDataRAII::finish(SourceRange AtEnd) {
+  assert(!Finished);
+  P.Actions.ActOnAtEnd(P.getCurScope(), AtEnd);
 
   Finished = true;
 }

@@ -372,11 +372,11 @@ void CodeGenFunction::GenerateObjCSetter(ObjCHookDecl *Hook,
 
 /// Generate the beginning of the constructor
 
-llvm::Function* CodeGenFunction::StartLogosConstructor() {
+llvm::Function* CodeGenFunction::StartLogosConstructor(std::string Ident) {
   FunctionArgList args; // Arguments for the ctor (there are none)
 
   llvm::FunctionType *MethodTy = llvm::FunctionType::get(VoidTy, false);
-  llvm::Function *Fn = llvm::Function::Create(MethodTy, llvm::GlobalValue::InternalLinkage, StringRef("logosLocalInit"), &CGM.getModule());
+  llvm::Function *Fn = llvm::Function::Create(MethodTy, llvm::GlobalValue::InternalLinkage, StringRef("logosLocalInit$" + Ident), &CGM.getModule());
 
   CodeGenTypes &Types = getTypes();
   CurFnInfo = &Types.arrangeNullaryFunction();
@@ -658,6 +658,90 @@ void CodeGenFunction::GenerateHookConstructor(ObjCHookDecl *OHD) {
         EmitNewMethod(clazz, selector, def, OMD);
     }
 
+  }
+
+  CurFn = Fn;
+  FinishFunction(SourceLocation());
+
+  CGM.AddGlobalCtor(Fn);
+  enableDebugInfo();
+}
+
+void CodeGenFunction::GenerateGroupConstructor(ObjCGroupDecl *OGD)
+{
+  llvm::Function *Fn = StartLogosConstructor(OGD->getNameAsString());
+
+  for (auto& OHD : OGD->GetHookDecls())
+  {
+    llvm::CallInst *clazz = EmitGetClassRuntimeCall(
+        OHD->getClassInterface()->getNameAsString());
+
+    bool requiresMetaClass = false;
+    llvm::CallInst* metaclass;
+    // K: Check if we should even push the metaclass onto the stack
+    for (ObjCContainerDecl::method_iterator M = OHD->meth_begin(),
+                                            MEnd = OHD->meth_end();
+         M != MEnd; ++M) {
+
+      ObjCMethodDecl *OMD = *M;
+      if (OMD->isClassMethod())
+        requiresMetaClass = true;
+    }
+
+    // Get the metaclass, which is used if we're hooking a class method.
+    if (requiresMetaClass)
+      metaclass = EmitObjectGetClassRuntimeCall(clazz);
+
+    // Set up hooked and new methods
+    for (ObjCContainerDecl::method_iterator M = OHD->meth_begin(),
+                                            MEnd = OHD->meth_end();
+         M != MEnd; ++M) {
+
+      ObjCMethodDecl *OMD = *M;
+
+      llvm::Value *selector = CGM.getObjCRuntime().GetSelector(*this, OMD);
+
+      // Get the method definition, check for @new
+      ObjCMethodDecl *mDecl;
+      ObjCInterfaceDecl *CDecl = OHD->getClassInterface();
+
+      if (CDecl) {
+        if ((mDecl = CDecl->lookupMethod(OMD->getSelector(),
+                                         OMD->isInstanceMethod()))) {
+          if (mDecl->getImplementationControl() == ObjCMethodDecl::New) {
+            EmitNewMethod(clazz, selector,
+                          OHD->GetMethodDefinition(OMD), OMD);
+
+            continue;
+          }
+        }
+      }
+
+      EmitMessageHook(OMD->isClassMethod() ? metaclass : clazz, selector,
+                      OHD->GetMethodDefinition(OMD),
+                      OHD->GetOrigPointer(OMD));
+    }
+
+    // Add getters/setters to the class
+    for (ObjCHookDecl::propimpl_iterator P = OHD->propimpl_begin(),
+                                         PEnd = OHD->propimpl_end();
+         P != PEnd; ++P) {
+
+      if(ObjCMethodDecl *OMD = (*P)->getPropertyDecl()->getGetterMethodDecl()) {
+        llvm::Value *selector = CGM.getObjCRuntime().GetSelector(*this, OMD);
+
+        if (llvm::Function *def = OHD->GetMethodDefinition(OMD))
+          EmitNewMethod(clazz, selector, def, OMD);
+      }
+
+      if(ObjCMethodDecl *OMD = (*P)->getPropertyDecl()->getSetterMethodDecl()) {
+        llvm::Value *selector = CGM.getObjCRuntime().GetSelector(*this, OMD);
+
+        if (llvm::Function *def = OHD->GetMethodDefinition(OMD))
+          EmitNewMethod(clazz, selector, def, OMD);
+      }
+
+    }
   }
 
   CurFn = Fn;

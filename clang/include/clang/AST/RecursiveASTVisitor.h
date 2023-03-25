@@ -1661,6 +1661,9 @@ DEF_TRAVERSE_DECL(ObjCImplementationDecl, {// FIXME: implement
                                           })
 DEF_TRAVERSE_DECL(ObjCHookDecl, {// FIXME: implement
                                 })
+DEF_TRAVERSE_DECL(ObjCGroupDecl, {// FIXME: implement
+                                })
+
 
 DEF_TRAVERSE_DECL(ObjCInterfaceDecl, {
   if (ObjCTypeParamList *typeParamList = D->getTypeParamListAsWritten()) {

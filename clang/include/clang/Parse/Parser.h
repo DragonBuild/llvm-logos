@@ -1725,12 +1725,32 @@ private:
   private:
     bool Finished;
   };
+
+  struct ObjCGroupParsingDataRAII {
+    Parser &P;
+    Decl *Dcl;
+
+    ObjCGroupParsingDataRAII(Parser &parser, Decl *D)
+        : P(parser), Dcl(D) {
+      P.CurParsedObjCGroup = this;
+      Finished = false;
+    }
+    ~ObjCGroupParsingDataRAII();
+
+    void finish(SourceRange AtEnd);
+    bool isFinished() const { return Finished; }
+
+  private:
+    bool Finished;
+  };
   ObjCImplParsingDataRAII *CurParsedObjCImpl;
+  ObjCGroupParsingDataRAII *CurParsedObjCGroup = nullptr;
   void StashAwayMethodOrFunctionBodyTokens(Decl *MDecl);
 
   DeclGroupPtrTy ParseObjCAtImplementationDeclaration(SourceLocation AtLoc,
                                                       ParsedAttributes &Attrs);
   DeclGroupPtrTy ParseObjCAtHookDeclaration(SourceLocation AtLoc);
+  DeclGroupPtrTy ParseObjCAtGroupDeclaration(SourceLocation AtLoc);
   DeclGroupPtrTy ParseObjCAtEndDeclaration(SourceRange atEnd);
   Decl *ParseObjCAtAliasDeclaration(SourceLocation atLoc);
   Decl *ParseObjCPropertySynthesize(SourceLocation atLoc);

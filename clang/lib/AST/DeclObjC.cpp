@@ -2393,6 +2393,19 @@ llvm::GlobalVariable * ObjCHookDecl::GetPropertyKey(
   return NULL;
 }
 
+void ObjCGroupDecl::anchor() { }
+
+ObjCGroupDecl *
+ObjCGroupDecl::Create(ASTContext &C, DeclContext *DC,
+                     SourceLocation nameLoc,
+                     SourceLocation atStartLoc) {
+  return new (C, DC) ObjCGroupDecl(DC, nameLoc, atStartLoc);
+}
+
+void ObjCGroupDecl::RegisterHookDecl(ObjCHookDecl *hook) {
+  HookDecls.insert(hook);
+}
+
 //===----------------------------------------------------------------------===//
 // ObjCCompatibleAliasDecl
 //===----------------------------------------------------------------------===//

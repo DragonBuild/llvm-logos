@@ -2769,6 +2769,8 @@ public:
 
 raw_ostream &operator<<(raw_ostream &OS, const ObjCImplementationDecl &ID);
 
+class ObjCGroupDecl;
+
 /// ObjCHookDecl - Represents a class hook definition - this is where
 /// method hooks are specified. For example:
 ///
@@ -2780,6 +2782,7 @@ raw_ostream &operator<<(raw_ostream &OS, const ObjCImplementationDecl &ID);
 ///
 class ObjCHookDecl : public ObjCImplDecl {
   virtual void anchor();
+  ObjCGroupDecl *Group = nullptr;
 
   /// MethodDefinitions - map of methods which have been defined in
   /// this hook.
@@ -2804,6 +2807,19 @@ public:
                               SourceLocation nameLoc,
                               SourceLocation atStartLoc);
 
+  static ObjCHookDecl *Create(ASTContext &C, DeclContext *DC,
+                              ObjCGroupDecl* group,
+                              ObjCInterfaceDecl *classInterface,
+                              SourceLocation nameLoc,
+                              SourceLocation atStartLoc)
+      {
+            ObjCHookDecl* hook = Create(C, DC, classInterface, nameLoc, atStartLoc);
+            hook->Group = group;
+            return hook;
+      };
+
+  ObjCGroupDecl* GetGroup() const { return Group; };
+
   void RegisterMethodDefinition(const ObjCMethodDecl *OMD, llvm::Function *Fn);
   llvm::Function *GetMethodDefinition(const ObjCMethodDecl *OMD);
 
@@ -2816,6 +2832,27 @@ public:
 
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == ObjCHook; }
+
+};
+
+class ObjCGroupDecl : public ObjCContainerDecl {
+
+  virtual void anchor() override;
+
+  llvm::DenseSet<ObjCHookDecl*> HookDecls;
+  ObjCGroupDecl(DeclContext *DC,
+               SourceLocation nameLoc, SourceLocation atStartLoc)
+               : ObjCContainerDecl(ObjCGroup, DC, nullptr, nameLoc, atStartLoc) {};
+public:
+  static ObjCGroupDecl *Create(ASTContext &C, DeclContext *DC,
+                              SourceLocation nameLoc,
+                              SourceLocation atStartLoc);
+
+  void RegisterHookDecl(ObjCHookDecl* hook);
+  llvm::DenseSet<ObjCHookDecl*> GetHookDecls() const { return HookDecls; };
+
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) { return K == ObjCGroup; }
 
 };
 

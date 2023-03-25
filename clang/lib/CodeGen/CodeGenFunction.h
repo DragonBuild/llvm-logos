@@ -2142,7 +2142,7 @@ public:
    llvm::GlobalVariable* GetPropertyKey(ObjCHookDecl *Hook,
                                         const ObjCPropertyImplDecl *PID);
 
-   llvm::Function* StartLogosConstructor();
+   llvm::Function* StartLogosConstructor(std::string Ident = "");
    llvm::CallInst* EmitGetClassRuntimeCall(std::string ClassName);
    llvm::CallInst* EmitObjectGetClassRuntimeCall(llvm::Value *O);
    llvm::CallInst* EmitSelRegisterName(std::string selector);
@@ -2165,7 +2165,8 @@ public:
                                    llvm::Value* Base, const ObjCIvarDecl *Ivar,
                                    unsigned CVRQualifiers);
 
-   void GenerateHookConstructor(ObjCHookDecl *OHD);
+  void GenerateHookConstructor(ObjCHookDecl *OHD);
+  void GenerateGroupConstructor(ObjCGroupDecl *OHD);
 
   //===--------------------------------------------------------------------===//
   //                                  Block Bits

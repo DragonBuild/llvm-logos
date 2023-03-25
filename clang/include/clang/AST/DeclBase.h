@@ -55,6 +55,7 @@ class NamedDecl;
 class ObjCContainerDecl;
 class ObjCMethodDecl;
 class ObjCHookDecl;
+class ObjCGroupDecl;
 struct PrintingPolicy;
 class RecordDecl;
 class SourceManager;
@@ -1975,6 +1976,7 @@ public:
     case Decl::ObjCCategory:
     case Decl::ObjCCategoryImpl:
     case Decl::ObjCHook:
+    case Decl::ObjCGroup:
     case Decl::ObjCImplementation:
     case Decl::ObjCInterface:
     case Decl::ObjCProtocol:

@@ -868,6 +868,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ObjCCategory:
     case ObjCCategoryImpl:
     case ObjCHook:
+    case ObjCGroup:
     case Import:
     case OMPThreadPrivate:
     case OMPAllocate:
@@ -1323,6 +1324,7 @@ DeclContext *DeclContext::getPrimaryContext() {
   case Decl::ObjCImplementation:
   case Decl::ObjCCategoryImpl:
   case Decl::ObjCHook:
+  case Decl::ObjCGroup:
     return this;
 
   default:

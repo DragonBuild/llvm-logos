@@ -84,6 +84,7 @@ def Named : DeclNode<Decl, "named declarations", 1>;
     def ObjCCategory : DeclNode<ObjCContainer>;
     def ObjCProtocol : DeclNode<ObjCContainer, "Objective-C protocols">;
     def ObjCInterface : DeclNode<ObjCContainer, "Objective-C interfaces">;
+    def ObjCGroup : DeclNode<ObjCContainer, "Objective-C Group">;
     def ObjCImpl
         : DeclNode<ObjCContainer, "Objective-C implementation declarations", 1>;
       def ObjCCategoryImpl : DeclNode<ObjCImpl>;

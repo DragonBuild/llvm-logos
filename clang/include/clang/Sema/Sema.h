@@ -10255,7 +10255,8 @@ public:
     OCK_ClassExtension,
     OCK_Implementation,
     OCK_CategoryImplementation,
-    OCK_Hook
+    OCK_Hook,
+    OCK_Group
   };
   ObjCContainerKind getObjCContainerKind() const;
 
@@ -10333,6 +10334,8 @@ public:
       const ParsedAttributesView &AttrList);
 
   Decl *ActOnStartHook(SourceLocation AtHookLoc,
+                       IdentifierInfo *ClassName, SourceLocation ClassLoc, ObjCGroupDecl* Group = nullptr);
+  Decl *ActOnStartGroup(SourceLocation AtHookLoc,
                        IdentifierInfo *ClassName, SourceLocation ClassLoc);
   DeclGroupPtrTy ActOnFinishObjCImplementation(Decl *ObjCImpDecl,
                                                ArrayRef<Decl *> Decls);

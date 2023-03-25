@@ -2243,7 +2243,7 @@ static bool shouldWarnUndefinedMethod(const ObjCMethodDecl *M) {
 
 
 Decl *Sema::ActOnStartHook(SourceLocation AtHookLoc,
-                          IdentifierInfo *ClassName, SourceLocation ClassLoc) {
+                          IdentifierInfo *ClassName, SourceLocation ClassLoc, ObjCGroupDecl* Group) {
   ObjCInterfaceDecl *IDecl = nullptr;
   // Check for another declaration kind with the same name.
   NamedDecl *PrevDecl
@@ -2293,8 +2293,10 @@ Decl *Sema::ActOnStartHook(SourceLocation AtHookLoc,
   }
 
   ObjCHookDecl *HookDecl =
-    ObjCHookDecl::Create(Context, CurContext, IDecl, ClassLoc, AtHookLoc);
+    ObjCHookDecl::Create(Context, CurContext, Group, IDecl, ClassLoc, AtHookLoc);
 
+  if (Group)
+    Group->RegisterHookDecl(HookDecl);
 
   if (CheckObjCDeclScope(HookDecl)) {
     ActOnObjCContainerStartDefinition(HookDecl);
@@ -2306,6 +2308,26 @@ Decl *Sema::ActOnStartHook(SourceLocation AtHookLoc,
 
   ActOnObjCContainerStartDefinition(HookDecl);
   return HookDecl;
+}
+
+
+Decl *Sema::ActOnStartGroup(SourceLocation AtHookLoc,
+                      IdentifierInfo *ClassName, SourceLocation ClassLoc)
+{
+  ObjCGroupDecl *GroupDecl =
+      ObjCGroupDecl::Create(Context, CurContext, ClassLoc, AtHookLoc);
+
+  GroupDecl->setDeclName(DeclarationName(ClassName));
+  if (CheckObjCDeclScope(GroupDecl)) {
+    ActOnObjCContainerStartDefinition(GroupDecl);
+    return GroupDecl;
+  }
+
+  // TODO: Check that there is no duplicate hook of this class.
+  PushOnScopeChains(GroupDecl, TUScope);
+
+  ActOnObjCContainerStartDefinition(GroupDecl);
+  return GroupDecl;
 }
 
 
@@ -3955,6 +3977,8 @@ Sema::ObjCContainerKind Sema::getObjCContainerKind() const {
       return Sema::OCK_CategoryImplementation;
     case Decl::ObjCHook:
       return Sema::OCK_Hook;
+    case Decl::ObjCGroup:
+      return Sema::OCK_Group;
 
     default:
       return Sema::OCK_None;
@@ -4521,6 +4545,14 @@ private:
     // the class interface.
     if (const ObjCInterfaceDecl *Interface = hook->getClassInterface())
       search(Interface);
+  }
+  void searchFrom(const ObjCGroupDecl *grp) {
+      // A method in a class implementation overrides declarations from
+      // the class interface.
+      for (auto *hook : grp->GetHookDecls())
+      {
+        searchFrom(hook);
+      }
   }
 
   void search(const ObjCProtocolList &protocols) {
