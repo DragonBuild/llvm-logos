@@ -3743,7 +3743,7 @@ Parser::ParseObjCOrigExpression(SourceLocation AtLoc) {
 ///      \@init ( args )
 ExprResult
 Parser::ParseObjCInitExpression(SourceLocation AtLoc) {
-  assert(Tok.isObjCAtKeyword(tok::objc_init) && "Not an @orig expression!");
+  assert(Tok.isObjCAtKeyword(tok::objc_init) && "Not an @init expression!");
 
   SourceLocation OrigLoc = ConsumeToken(); // the 'orig' token
 
@@ -3765,25 +3765,33 @@ Parser::ParseObjCInitExpression(SourceLocation AtLoc) {
 
     if (tok.is(tok::identifier))
     {
-      auto curDecs = getCurScope()->getParent()->decls();
-      for (auto dec : curDecs)
+      Scope* checkScope = getCurScope();
+      bool found = false;
+      while (checkScope && !found)
       {
-        if (dec->getKind() == Decl::ObjCGroup)
+        auto curDecs = checkScope->decls();
+
+        for (auto dec : curDecs)
         {
-          auto gDec = dyn_cast<ObjCGroupDecl>(dec);
-          std::string tokRaw = DeclarationName(tok.getIdentifierInfo()).getAsString();
-          if (gDec->getName().str() == tokRaw)
+          if (dec->getKind() == Decl::ObjCGroup)
           {
-            ArgExprs.push_back(gDec);
-            goto found;
+            auto gDec = dyn_cast<ObjCGroupDecl>(dec);
+            std::string tokRaw = DeclarationName(tok.getIdentifierInfo()).getAsString();
+            if (gDec->getName().str() == tokRaw)
+            {
+              ArgExprs.push_back(gDec);
+              found = true;
+              break;
+            }
           }
         }
-      }
-      return ExprError(Diag(Tok, diag::err_expected_ident));
-    }
 
-    found:
-    continue;
+        checkScope = checkScope->getParent();
+      }
+
+      if (!found)
+        return ExprError(Diag(Tok, diag::err_expected_ident));
+    }
   }
 
   return Actions.BuildObjCInitExpression(OrigLoc, ArgExprs, loc);
