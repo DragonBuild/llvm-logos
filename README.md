@@ -5,7 +5,7 @@ that are not yet available or public._
 
 llvm-ObjCS is a modified build of apple-llvm, allowing compilation of Objective-CS code directly to LLVM IR.
 
-The Objective-CS Language Specification can be viewed here: https://github.com/eswick/Objective-CS
+The Objective-CS Language Specification can be viewed here: https://github.com/DragonBuild/Objective-CS
 
 `<upcoming>`
 The toolchain has direct integration and companion tooling with the [dragon](https://github.com/DragonBuild/dragon) build system,
