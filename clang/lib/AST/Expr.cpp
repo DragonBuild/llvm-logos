@@ -3784,6 +3784,7 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case ObjCMessageExprClass:
   case ObjCPropertyRefExprClass:
   case ObjCOrigExprClass:
+  case ObjCInitExprClass:
   // FIXME: Classify these cases better.
     if (IncludePossibleEffects)
       return true;
@@ -4307,6 +4308,26 @@ Stmt::child_range ObjCOrigExpr::children() {
 
   return child_range(begin,
                      reinterpret_cast<Stmt **>(getArgs() + getNumArgs()));
+}
+
+ObjCInitExpr::ObjCInitExpr(QualType rType, ArrayRef<ObjCGroupDecl *> args, SourceLocation at, SourceLocation rp) :
+       Expr(ObjCInitExprClass, rType, VK_PRValue, OK_Ordinary),
+
+  AtLoc(at), RParenLoc(rp) {
+    setNumArgs(Args.size());
+    for (auto g : args)
+    {
+      Args.push_back(g);
+    }
+}
+
+// ObjCMessageExpr
+Stmt::child_range ObjCInitExpr::children() {
+  Stmt **begin;
+
+  begin = reinterpret_cast<Stmt **>(getArgs());
+
+  return child_range(begin, begin);
 }
 
 ShuffleVectorExpr::ShuffleVectorExpr(const ASTContext &C, ArrayRef<Expr *> args,

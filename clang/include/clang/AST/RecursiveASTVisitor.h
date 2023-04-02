@@ -2775,6 +2775,7 @@ DEF_TRAVERSE_STMT(ObjCMessageExpr, {
 })
 
 DEF_TRAVERSE_STMT(ObjCOrigExpr, { })
+DEF_TRAVERSE_STMT(ObjCInitExpr, { })
 DEF_TRAVERSE_STMT(ObjCPropertyRefExpr, {
   if (S->isClassReceiver()) {
     ObjCInterfaceDecl *IDecl = S->getClassReceiver();

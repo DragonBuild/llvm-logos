@@ -1454,6 +1454,12 @@ void ASTStmtReader::VisitObjCOrigExpr(ObjCOrigExpr *E) {
   E->setRParenLoc(readSourceLocation());
   // FIXME: What about Args?
 }
+void ASTStmtReader::VisitObjCInitExpr(ObjCInitExpr *E) {
+  VisitExpr(E);
+  E->setAtLoc(readSourceLocation());
+  E->setRParenLoc(readSourceLocation());
+  // FIXME: What about Args?
+}
 
 void ASTStmtReader::VisitObjCEncodeExpr(ObjCEncodeExpr *E) {
   VisitExpr(E);
@@ -3205,6 +3211,9 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case EXPR_OBJC_ORIG_EXPR:
       S = new (Context) ObjCOrigExpr(Empty);
+
+    case EXPR_OBJC_INIT_EXPR:
+      S = new (Context) ObjCInitExpr(Empty);
 
     case EXPR_OBJC_ISA:
       S = new (Context) ObjCIsaExpr(Empty);

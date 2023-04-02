@@ -2614,6 +2614,12 @@ void StmtPrinter::VisitObjCOrigExpr(ObjCOrigExpr *Node) {
   OS << ')';
 }
 
+void StmtPrinter::VisitObjCInitExpr(ObjCInitExpr *Node) {
+  OS << "@init(";
+  // TODO: Print arguments
+  OS << ')';
+}
+
 void StmtPrinter::VisitObjCEncodeExpr(ObjCEncodeExpr *Node) {
   OS << "@encode(";
   Node->getEncodedType().print(OS, Policy);

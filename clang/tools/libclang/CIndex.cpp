@@ -5643,6 +5643,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("ObjCSelectorExpr");
   case CXCursor_ObjCOrigExpr:
       return cxstring::createRef("ObjCOrigExpr");
+  case CXCursor_ObjCInitExpr:
+      return cxstring::createRef("ObjCInitExpr");
   case CXCursor_ObjCProtocolExpr:
     return cxstring::createRef("ObjCProtocolExpr");
   case CXCursor_ObjCBridgedCastExpr:

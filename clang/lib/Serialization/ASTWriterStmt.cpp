@@ -1330,6 +1330,14 @@ void ASTStmtWriter::VisitObjCOrigExpr(ObjCOrigExpr *E) {
   // FIXME: What about Args?
 }
 
+void ASTStmtWriter::VisitObjCInitExpr(ObjCInitExpr *E) {
+  VisitExpr(E);
+  Record.AddSourceLocation(E->getAtLoc());
+  Record.AddSourceLocation(E->getRParenLoc());
+  Code = serialization::EXPR_OBJC_INIT_EXPR;
+  // FIXME: What about Args?
+}
+
 void ASTStmtWriter::VisitObjCEncodeExpr(ObjCEncodeExpr *E) {
   VisitExpr(E);
   Record.AddTypeSourceInfo(E->getEncodedTypeSourceInfo());

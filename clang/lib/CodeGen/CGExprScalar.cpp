@@ -512,6 +512,10 @@ public:
     return CGF.EmitObjCOrigExpr(E);
   }
 
+  Value *VisitObjCInitExpr(ObjCInitExpr *E) {
+    return CGF.EmitObjCInitExpr(E);
+  }
+
   Value *VisitObjCSelectorExpr(ObjCSelectorExpr *E) {
     return CGF.EmitObjCSelectorExpr(E);
   }

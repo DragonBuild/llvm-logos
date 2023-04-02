@@ -2257,6 +2257,10 @@ void StmtProfiler::VisitObjCOrigExpr(const ObjCOrigExpr *S) {
     VisitExpr(S);
 }
 
+void StmtProfiler::VisitObjCInitExpr(const ObjCInitExpr *S) {
+    VisitExpr(S);
+}
+
 void StmtProfiler::VisitObjCEncodeExpr(const ObjCEncodeExpr *S) {
   VisitExpr(S);
   VisitType(S->getEncodedType());

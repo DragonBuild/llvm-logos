@@ -7553,6 +7553,9 @@ public:
   ExprResult BuildObjCOrigExpression(SourceLocation AtLoc,
                                      ArrayRef<Expr *> Args,
                                      SourceLocation RParenLoc);
+  ExprResult BuildObjCInitExpression(SourceLocation AtLoc,
+                                     ArrayRef<ObjCGroupDecl *> Args,
+                                     SourceLocation RParenLoc);
   ExprResult BuildObjCEncodeExpression(SourceLocation AtLoc,
                                   TypeSourceInfo *EncodedTypeInfo,
                                   SourceLocation RParenLoc);

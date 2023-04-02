@@ -3035,6 +3035,8 @@ ExprResult Parser::ParseObjCAtExpression(SourceLocation AtLoc) {
       return ParsePostfixExpressionSuffix(ParseObjCSelectorExpression(AtLoc));
     case tok::objc_orig:
       return ParseObjCOrigExpression(AtLoc);
+    case tok::objc_init:
+      return ParseObjCInitExpression(AtLoc);
     case tok::objc_available:
       return ParseAvailabilityCheckExpr(AtLoc);
       default: {
@@ -3735,6 +3737,56 @@ Parser::ParseObjCOrigExpression(SourceLocation AtLoc) {
   T.consumeClose();
 
   return Actions.BuildObjCOrigExpression(OrigLoc, ArgExprs, T.getCloseLocation());
+}
+
+///    objc-logos-init-expression
+///      \@init ( args )
+ExprResult
+Parser::ParseObjCInitExpression(SourceLocation AtLoc) {
+  assert(Tok.isObjCAtKeyword(tok::objc_init) && "Not an @orig expression!");
+
+  SourceLocation OrigLoc = ConsumeToken(); // the 'orig' token
+
+  // Throw error if no parentheses follow
+  if (Tok.isNot(tok::l_paren))
+    return ExprError(Diag(Tok, diag::err_expected_lparen_after) << "@init");
+
+  SmallVector<ObjCGroupDecl *, 5> ArgExprs;
+  SmallVector<SourceLocation, 20> CommaLocs;
+  SourceLocation loc;
+  CachedTokens Toks;
+
+  ConsumeAndStoreUntil(tok::r_paren, Toks, /*StopAtSemi=*/true);
+
+  for (auto tok : Toks)
+  {
+
+    // TODO: code completion goes here probably.
+
+    if (tok.is(tok::identifier))
+    {
+      auto curDecs = getCurScope()->getParent()->decls();
+      for (auto dec : curDecs)
+      {
+        if (dec->getKind() == Decl::ObjCGroup)
+        {
+          auto gDec = dyn_cast<ObjCGroupDecl>(dec);
+          std::string tokRaw = DeclarationName(tok.getIdentifierInfo()).getAsString();
+          if (gDec->getName().str() == tokRaw)
+          {
+            ArgExprs.push_back(gDec);
+            goto found;
+          }
+        }
+      }
+      return ExprError(Diag(Tok, diag::err_expected_ident));
+    }
+
+    found:
+    continue;
+  }
+
+  return Actions.BuildObjCInitExpression(OrigLoc, ArgExprs, loc);
 }
 
 ///    objc-encode-expression:

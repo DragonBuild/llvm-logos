@@ -2229,7 +2229,9 @@ enum CXCursorKind {
   CXCursor_FirstExtraDecl = CXCursor_ModuleImportDecl,
   CXCursor_LastExtraDecl = CXCursor_ConceptDecl,
   CXCursor_ObjCOrigExpr = 606, /* FIXME: This doesn't belong
-                                                       here. */
+                                                     here. */
+  CXCursor_ObjCInitExpr = 607, /* FIXME: This doesn't belong
+                                                     here. */
   /**
    * A code completion overload candidate.
    */

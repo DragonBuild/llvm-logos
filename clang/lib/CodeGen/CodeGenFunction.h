@@ -4384,6 +4384,7 @@ public:
                              ReturnValueSlot Return = ReturnValueSlot());
 
   llvm::Value *EmitObjCOrigExpr(const ObjCOrigExpr *E);
+  llvm::Value *EmitObjCInitExpr(const ObjCInitExpr *E);
 
   /// Retrieves the default cleanup kind for an ARC cleanup.
   /// Except under -fobjc-arc-eh, ARC cleanups are normal-only.

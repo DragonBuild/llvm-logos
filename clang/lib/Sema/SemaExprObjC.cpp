@@ -1167,6 +1167,22 @@ ExprResult Sema::BuildObjCOrigExpression(SourceLocation AtLoc,
 
   return new (Mem) ObjCOrigExpr(Method, Args, AtLoc, RParenLoc);
 }
+ExprResult Sema::BuildObjCInitExpression(SourceLocation AtLoc,
+                                         ArrayRef<ObjCGroupDecl *> Args,
+                                         SourceLocation RParenLoc) {
+
+  // Check number of arguments
+  // TODO: Check argument types and improve diagnostics
+
+  unsigned Size = sizeof(ObjCInitExpr) + sizeof(void *) +
+                  Args.size() * sizeof(Expr *);
+
+  ObjCOrigExpr *Mem;
+  Mem = (ObjCOrigExpr *)Context.Allocate(Size);
+  QualType type = getCurFunctionDecl()->getReturnType();
+
+  return new (Mem) ObjCInitExpr(type, Args, AtLoc, RParenLoc);
+}
 
 
 ExprResult Sema::BuildObjCEncodeExpression(SourceLocation AtLoc,

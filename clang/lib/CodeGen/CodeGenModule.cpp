@@ -6468,8 +6468,8 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
     break;
   }
   case Decl::ObjCGroup: {
-    ObjCGroupDecl* OGD = cast<ObjCGroupDecl>(D);
-    CodeGenFunction(*this).GenerateGroupConstructor(OGD);
+    //ObjCGroupDecl* OGD = cast<ObjCGroupDecl>(D);
+    //CodeGenFunction(*this).GenerateGroupConstructor(OGD);
     break;
   }
   case Decl::ObjCMethod: {
