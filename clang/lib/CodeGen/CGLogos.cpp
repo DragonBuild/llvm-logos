@@ -534,11 +534,21 @@ void CodeGenFunction::EmitMessageHook(llvm::CallInst *_class,
                                                           "MSHookMessageEx");
 
   cast<llvm::Function>(msHookMsgExFn.getCallee())->setLinkage(llvm::Function::ExternalWeakLinkage);
-
   llvm::Value *msHookMsgExArgs[4];
+
+  llvm::Value *targetValue = Builder.CreateBitCast(hook, Int8PtrTy);
+  if (auto &schema =
+          CGM.getCodeGenOpts().PointerAuth.FunctionPointers)
+  {
+    auto authInfo = EmitPointerAuthInfo(schema, targetValue,
+                                        GlobalDecl(), QualType());
+    msHookMsgExArgs[2] = EmitPointerAuthSign(authInfo, targetValue);
+  }
+  else
+    msHookMsgExArgs[2] = Builder.CreateBitCast(hook, Int8PtrTy);
+
   msHookMsgExArgs[0] = Builder.CreateBitCast(_class, Int8PtrTy);
   msHookMsgExArgs[1] = Builder.CreateBitCast(message, Int8PtrTy);
-  msHookMsgExArgs[2] = Builder.CreateBitCast(hook, Int8PtrTy);
   msHookMsgExArgs[3] = Builder.CreateBitCast(old, Int8PtrTy);
 
   EmitRuntimeCallOrInvoke(msHookMsgExFn, msHookMsgExArgs);
@@ -843,7 +853,13 @@ llvm::Value* CodeGenFunction::EmitObjCOrigExpr(const ObjCOrigExpr *E) {
 
   // Emit self, _cmd
   Args.add(RValue::get(LoadObjCSelf()), getContext().getObjCIdType());
-  Args.add(RValue::get(Runtime.GetSelector(*this, OMD->getSelector())),
+
+  // instead of re-emitting the method decl, we can just pass through the existing arg we got
+  VarDecl *Sel = cast<ObjCMethodDecl>(CurFuncDecl)->getCmdDecl();
+  DeclRefExpr DRE(getContext(), Sel,
+          /*is enclosing local*/ (CurFuncDecl != CurCodeDecl),
+                  getContext().getObjCSelType(), VK_LValue, SourceLocation());
+  Args.add(RValue::get(EmitLoadOfScalar(EmitDeclRefLValue(&DRE), SourceLocation())),
                        getContext().getObjCSelType());
 
   // Emit arguments
@@ -869,7 +885,13 @@ llvm::Value* CodeGenFunction::EmitObjCOrigExpr(const ObjCOrigExpr *E) {
 
   llvm::Value *Fn = Builder.CreateAlignedLoad(VoidPtrTy, OHD->GetOrigPointer(OMD), getPointerAlign());
   llvm::Value* FnV = Builder.CreateBitCast(Fn, MSI.MessengerType);
-  CGCallee Callee = CGCallee(CGCalleeInfo(), FnV, CGPointerAuthInfo());
+
+  CGPointerAuthInfo pointerAuth = CGPointerAuthInfo();
+  if (auto &schema =
+          CGM.getCodeGenOpts().PointerAuth.FunctionPointers) {
+    pointerAuth = EmitPointerAuthInfo(schema, FnV,GlobalDecl(), QualType());
+  }
+  CGCallee Callee = CGCallee(CGCalleeInfo(), FnV, pointerAuth);
 
   RValue rvalue = EmitCall(MSI.CallInfo, Callee, ReturnValueSlot(), Args);
 
